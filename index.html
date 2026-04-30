@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sistem YAYASAN SULTAN AZLAN SHAH PWA</title>
+  <title>YAYASAN SULTAN AZLAN SHAH</title>
   <link rel="manifest" href="manifest.json">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
@@ -12,7 +12,7 @@
     // KONFIGURASI UTAMA SISTEM (Ubah suai di sini)
     // ==========================================
     const APP_CONFIG = {
-      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbxPnjzmd82i62kAC9bQbhXaq2zORPwnx-VY0pia_Ylk5Dd60Tf_Np4Tpf4Zv22BzxJrnQ/exec"
+      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbzsMVMcIptUSpGHj1B6_UmDJ6F_W76rTjAftNGGSX4g6iHL6nkQYNySnATSOSEv8jqhUw/exec"
     };
   </script>
   <style>
@@ -96,11 +96,12 @@
 
   <!-- Header Section -->
   <header class="flex justify-between items-center mb-6 neu-flat p-4">
-    <div>
-      <h1 class="text-xl font-bold text-yellow-500">Prestasi 3D</h1>
-      <p class="text-xs text-gray-400 font-semibold" id="status-indicator">🟢 Online</p>
+    <div class="flex-1 pr-2">
+      <h1 class="text-xl font-bold text-yellow-500 uppercase leading-tight">YAYASAN SULTAN AZLAN SHAH</h1>
+      <p class="text-sm font-semibold text-gray-300 mt-1">SMK SUNGAI BAYO</p>
+      <p class="text-xs text-gray-400 font-semibold mt-2" id="status-indicator">🟢 Online</p>
     </div>
-    <button onclick="openAdmin()" class="neu-btn p-3">
+    <button onclick="openAdmin()" class="neu-btn p-3 flex-shrink-0">
       <i data-lucide="settings" class="w-6 h-6"></i>
     </button>
   </header>
