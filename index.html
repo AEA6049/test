@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sistem Prestasi 3D PWA</title>
+  <link rel="manifest" href="manifest.json">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    // ==========================================
+    // KONFIGURASI UTAMA SISTEM (Ubah suai di sini)
+    // ==========================================
+    const APP_CONFIG = {
+      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbxQOuFZg1CtcyDrThjcUoXrkHUs2nq9mHjNNS2FKp8k8dnjKy8cfK85_boZ2vG9YR6vzQ/exec"
+    };
+  </script>
+  <style>
+    :root {
+      --bg-color: #fcf8dd; 
+      --shadow-light: #ffffff;
+      --shadow-dark: #d6d2b5;
+      --text-charcoal: #333333;
+      --accent-gold: #FFD700;
+    }
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-charcoal);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      overflow-x: hidden;
+    }
+    .neu-flat {
+      background: var(--bg-color);
+      border-radius: 16px;
+      box-shadow: 8px 8px 16px var(--shadow-dark), -8px -8px 16px var(--shadow-light);
+    }
+    .neu-pressed {
+      background: var(--bg-color);
+      border-radius: 16px;
+      box-shadow: inset 6px 6px 12px var(--shadow-dark), inset -6px -6px 12px var(--shadow-light);
+    }
+    .neu-btn {
+      background: var(--bg-color);
+      border-radius: 50px;
+      box-shadow: 5px 5px 10px var(--shadow-dark), -5px -5px 10px var(--shadow-light);
+      transition: all 0.2s ease-in-out;
+    }
+    .neu-btn:active {
+      box-shadow: inset 4px 4px 8px var(--shadow-dark), inset -4px -4px 8px var(--shadow-light);
+    }
+    .neu-btn-disabled {
+      opacity: 0.5;
+      pointer-events: none;
+    }
+    .glass-panel {
+      background: rgba(255, 255, 255, 0.8);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.5);
+      border-radius: 24px;
+    }
+    .hidden { display: none !important; }
+    .star-gold { color: var(--accent-gold); fill: var(--accent-gold); }
+  </style>
+</head>
+<body class="p-4">
+
+  <!-- Loading Overlay -->
+  <div id="loading-overlay" class="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-white/70 backdrop-blur-sm">
+    <div class="w-12 h-12 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin"></div>
+    <p class="mt-4 font-bold text-gray-700" id="loading-text">Memuat Turun Data...</p>
+  </div>
+
+  <!-- Header Section -->
+  <header class="flex justify-between items-center mb-6 neu-flat p-4">
+    <div>
+      <h1 class="text-xl font-bold text-gray-800">Prestasi 3D</h1>
+      <p class="text-xs text-gray-500 font-semibold" id="status-indicator">🟢 Online</p>
+    </div>
+    <button onclick="openAdmin()" class="neu-btn p-3">
+      <i data-lucide="settings" class="w-6 h-6 text-gray-700"></i>
+    </button>
+  </header>
+
+  <!-- Main App -->
+  <main id="main-app" class="space-y-6">
+    
+    <!-- Teacher & Session Info -->
+    <section class="neu-flat p-5">
+      <label class="block text-sm font-bold mb-2">Nama Guru</label>
+      <select id="guru-select" class="w-full p-3 neu-pressed outline-none mb-4">
+        <option value="">-- Sedang memuat --</option>
+      </select>
+      
+      <label class="block text-sm font-bold mb-2">Kelas</label>
+      <select id="kelas-select" class="w-full p-3 neu-pressed outline-none" onchange="renderStudents()">
+        <option value="">-- Sedang memuat --</option>
+      </select>
+    </section>
+
+    <!-- Tab Switcher -->
+    <div class="flex space-x-2 neu-flat p-2">
+      <button id="btn-tab-kehadiran" onclick="switchMainTab('kehadiran')" class="flex-1 bg-yellow-400 text-black py-3 rounded-xl font-bold transition shadow-sm">
+        Kehadiran
+      </button>
+      <button id="btn-tab-pelaporan" onclick="switchMainTab('pelaporan')" class="flex-1 bg-white/40 text-gray-800 py-3 rounded-xl font-bold transition">
+        Pelaporan Sesi
+      </button>
+    </div>
+
+    <!-- Kehadiran Tab (MANDATORY) -->
+    <section id="tab-kehadiran" class="space-y-4">
+      <div class="flex justify-between items-center mb-2 pl-2">
+        <h2 class="text-lg font-bold">Senarai Murid & Bintang</h2>
+      </div>
+      <div id="student-list" class="space-y-4">
+        <!-- Dynamic Student Cards here -->
+      </div>
+      
+      <div class="mt-4 flex justify-center">
+        <button onclick="openAddMurid()" class="neu-btn px-6 py-3 flex items-center gap-2 text-sm font-bold text-gray-800 w-full justify-center">
+          <i data-lucide="user-plus" class="w-5 h-5"></i> Tambah Murid Baru
+        </button>
+      </div>
+
+      <button onclick="submitAttendance()" class="w-full mt-6 py-4 text-lg font-bold text-gray-800 bg-yellow-400 neu-btn flex justify-center items-center gap-2">
+        <i data-lucide="clipboard-check" class="w-5 h-5"></i> Hantar Kehadiran (GPS)
+      </button>
+    </section>
+
+    <!-- Pelaporan Tab (OPTIONAL) -->
+    <section id="tab-pelaporan" class="neu-flat p-5 hidden">
+      <h2 class="text-lg font-bold mb-2">Pelaporan Sesi Pengajaran</h2>
+      <p class="text-xs text-gray-500 mb-4">Laporan ini adalah pilihan. Hantar berserta gambar untuk +10 Point Prestasi Guru.</p>
+      
+      <label class="block text-sm font-bold mb-2">Ulasan (Bertulis)</label>
+      <textarea id="ulasan" rows="4" class="w-full p-3 neu-pressed outline-none mb-4" placeholder="Ulasan sesi pengajaran..."></textarea>
+      
+      <label class="block text-sm font-bold mb-2">Gambar Bukti</label>
+      <input type="file" id="gambar-bukti" accept="image/*" class="w-full p-2 neu-pressed text-sm mb-6">
+
+      <button onclick="submitReport()" class="w-full py-4 text-lg font-bold text-gray-800 bg-green-400 neu-btn flex justify-center items-center gap-2">
+        <i data-lucide="send" class="w-5 h-5"></i> Hantar Laporan (GPS)
+      </button>
+    </section>
+
+  </main>
+
+  <!-- Modal Tambah/Edit Murid -->
+  <div id="murid-modal" class="fixed inset-0 z-50 p-4 hidden flex items-center justify-center bg-black/40 backdrop-blur-sm">
+    <div class="glass-panel w-full max-w-sm p-6 relative bg-white/90">
+      <h3 id="murid-modal-title" class="font-bold text-xl mb-4 text-gray-800">Tambah Murid</h3>
+      <input type="hidden" id="murid-modal-oldnama">
+      
+      <label class="block text-sm font-bold mb-1 text-gray-700">Nama Murid</label>
+      <input type="text" id="murid-modal-nama" class="w-full p-3 neu-pressed outline-none mb-4" placeholder="Cth: Ali Bin Abu">
+      
+      <label class="block text-sm font-bold mb-1 text-gray-700">Kelas</label>
+      <input type="text" id="murid-modal-kelas" class="w-full p-3 neu-pressed outline-none mb-6" placeholder="Cth: 1 Zamrud">
+      
+      <div class="flex gap-3 mb-3">
+        <button onclick="saveMurid()" class="flex-1 bg-green-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-green-600 transition">Simpan</button>
+        <button onclick="closeMuridModal()" class="flex-1 bg-gray-400 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-gray-500 transition">Batal</button>
+      </div>
+      
+      <button id="murid-modal-delete" onclick="deleteMuridAction()" class="w-full bg-red-500 text-white font-bold py-3 rounded-xl shadow-lg hidden flex justify-center items-center gap-2 hover:bg-red-600 transition">
+        <i data-lucide="trash-2" class="w-5 h-5"></i> Padam
+      </button>
+    </div>
+  </div>
+
+  <!-- Admin Secret Panel -->
+  <div id="admin-panel" class="fixed inset-0 z-50 p-4 hidden flex items-center justify-center bg-black/40">
+    <div class="glass-panel w-full max-w-lg p-6 relative">
+      <button onclick="closeAdmin()" class="absolute top-4 right-4 text-gray-800 font-bold bg-white/50 rounded-full p-2">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+      <h2 class="text-xl font-bold mb-4 text-gray-900">Status PWA</h2>
+      <div class="space-y-4 text-sm text-gray-800">
+        <p>Aplikasi ini mematuhi format 3 Sheet: `nama murid`, `guru`, dan `pelaporan`.</p>
+        <p>GPS & Gambar dimampatkan secara terus pada pelayar klien.</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    lucide.createIcons();
+
+    let students = []; 
+    let classes = [];
+    let teachers = [];
+    let offlineQueue = JSON.parse(localStorage.getItem('offlineQueue') || '[]');
+
+    async function apiCall(action, payload = null) {
+      if (typeof google !== 'undefined' && google.script) {
+        return new Promise((resolve, reject) => {
+          if (action === 'getInitialData') google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).getInitialData();
+          else if (action === 'addMurid') google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).addMurid(payload);
+          else if (action === 'updateMurid') google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).updateMurid(payload);
+          else if (action === 'deleteMurid') google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).deleteMurid(payload);
+          else if (action === 'processAttendance') google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).processAttendance(payload);
+          else if (action === 'processReport') google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).processReport(payload);
+        });
+      } else {
+        const url = APP_CONFIG.GAS_WEB_APP_URL + "?action=" + action;
+        const options = payload ? {
+          method: 'POST',
+          body: JSON.stringify(payload),
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+        } : {};
+        try {
+          const res = await fetch(url, options);
+          return await res.json();
+        } catch(e) {
+          throw new Error('Ralat API: ' + e.message);
+        }
+      }
+    }
+
+    function loadInitialData() {
+      setLoading(true, "Memuat Turun Data...");
+      apiCall('getInitialData').then(data => {
+        students = data.murid.map(m => ({ ...m, domId: m.nama.replace(/[^a-zA-Z0-9]/g, '_') })) || [];
+        teachers = data.guru || [];
+        classes = [...new Set(students.map(s => s.kelas))];
+        populateSelects();
+        renderStudents();
+        setLoading(false);
+      }).catch(err => {
+        console.error(err);
+        alert("Gagal menyambung. Menggunakan data demo.");
+        students = [{ nama: 'Data Ujian', kelas: '1 Amanah', prestasi: 0, domId: 'Data_Ujian' }];
+        classes = ['1 Amanah'];
+        teachers = ['Guru Ujian'];
+        populateSelects();
+        renderStudents();
+        setLoading(false);
+      });
+    }
+
+    function populateSelects() {
+      const guruSel = document.getElementById('guru-select');
+      const kelasSel = document.getElementById('kelas-select');
+      
+      guruSel.innerHTML = '<option value="">-- Pilih Nama Guru --</option>';
+      teachers.forEach(g => { guruSel.innerHTML += `<option value="${g}">${g}</option>`; });
+      
+      kelasSel.innerHTML = '<option value="">-- Sila Pilih Kelas --</option>';
+      classes.forEach(c => { kelasSel.innerHTML += `<option value="${c}">${c}</option>`; });
+    }
+
+    function renderStudents() {
+      const container = document.getElementById('student-list');
+      container.innerHTML = '';
+      const selectedKelas = document.getElementById('kelas-select').value;
+      
+      if(!selectedKelas) {
+        container.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">Sila pilih kelas.</p>';
+        return;
+      }
+      
+      const filtered = students.filter(s => s.kelas === selectedKelas);
+      if(filtered.length === 0) {
+        container.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">Tiada nama di dalam kelas ini.</p>';
+      }
+      
+      filtered.forEach((std) => {
+        const card = document.createElement('div');
+        card.className = 'neu-flat p-4 flex flex-col gap-2';
+        card.innerHTML = `
+          <div class="flex justify-between items-center border-b border-yellow-200 pb-2 mb-1">
+            <div class="flex items-center gap-3">
+              <input type="checkbox" id="hadir-${std.domId}" checked onchange="toggleAttendance('${std.domId}')" class="w-6 h-6 accent-yellow-500">
+              <div>
+                <p class="font-bold text-gray-800">${std.nama}</p>
+                <p class="text-xs text-gray-500">Terkumpul: ${std.prestasi} ⭐</p>
+              </div>
+            </div>
+            <button onclick="editMurid('${std.nama}')" class="p-2 bg-blue-100 text-blue-600 rounded-full hover:bg-blue-200 transition">
+              <i data-lucide="edit-2" class="w-4 h-4"></i>
+            </button>
+          </div>
+          <div class="flex justify-between items-center mt-2">
+            <span class="text-sm font-semibold text-gray-600">Bintang Semasa:</span>
+            <div class="flex items-center gap-3">
+              <button id="btn-minus-${std.domId}" onclick="updateStar('${std.domId}', -1)" class="neu-btn w-8 h-8 flex justify-center items-center font-bold">-</button>
+              <div class="flex items-center gap-1">
+                <i data-lucide="star" class="w-5 h-5 star-gold"></i>
+                <span id="star-val-${std.domId}" class="font-bold text-lg w-4 text-center">3</span>
+              </div>
+              <button id="btn-plus-${std.domId}" onclick="updateStar('${std.domId}', 1)" class="neu-btn w-8 h-8 flex justify-center items-center font-bold">+</button>
+            </div>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+      lucide.createIcons();
+    }
+
+    function toggleAttendance(domId) {
+      const isChecked = document.getElementById(`hadir-${domId}`).checked;
+      const starVal = document.getElementById(`star-val-${domId}`);
+      const btnMinus = document.getElementById(`btn-minus-${domId}`);
+      const btnPlus = document.getElementById(`btn-plus-${domId}`);
+      
+      if (!isChecked) {
+        starVal.innerText = '0';
+        btnMinus.classList.add('neu-btn-disabled');
+        btnPlus.classList.add('neu-btn-disabled');
+      } else {
+        starVal.innerText = '3';
+        btnMinus.classList.remove('neu-btn-disabled');
+        btnPlus.classList.remove('neu-btn-disabled');
+      }
+    }
+
+    function updateStar(domId, change) {
+      const starEl = document.getElementById(`star-val-${domId}`);
+      let current = parseInt(starEl.innerText);
+      let newVal = current + change;
+      if (newVal >= 0 && newVal <= 6) starEl.innerText = newVal;
+    }
+
+    function switchMainTab(tab) {
+      const isKehadiran = tab === 'kehadiran';
+      document.getElementById('tab-kehadiran').classList.toggle('hidden', !isKehadiran);
+      document.getElementById('tab-pelaporan').classList.toggle('hidden', isKehadiran);
+      
+      const btnK = document.getElementById('btn-tab-kehadiran');
+      const btnP = document.getElementById('btn-tab-pelaporan');
+      
+      if (isKehadiran) {
+        btnK.className = "flex-1 bg-yellow-400 text-black py-3 rounded-xl font-bold transition shadow-sm";
+        btnP.className = "flex-1 bg-white/40 text-gray-800 py-3 rounded-xl font-bold transition";
+      } else {
+        btnP.className = "flex-1 bg-yellow-400 text-black py-3 rounded-xl font-bold transition shadow-sm";
+        btnK.className = "flex-1 bg-white/40 text-gray-800 py-3 rounded-xl font-bold transition";
+      }
+    }
+
+    function openAddMurid() {
+      if(!navigator.onLine) return alert('Memerlukan internet.');
+      document.getElementById('murid-modal-title').innerText = 'Tambah Murid Baharu';
+      document.getElementById('murid-modal-oldnama').value = '';
+      document.getElementById('murid-modal-nama').value = '';
+      document.getElementById('murid-modal-kelas').value = document.getElementById('kelas-select').value || '';
+      document.getElementById('murid-modal-delete').classList.add('hidden');
+      document.getElementById('murid-modal').classList.remove('hidden');
+    }
+
+    function editMurid(nama) {
+      if(!navigator.onLine) return alert('Memerlukan internet.');
+      const std = students.find(s => s.nama === nama);
+      if(std) {
+        document.getElementById('murid-modal-title').innerText = 'Ubah Suai Murid';
+        document.getElementById('murid-modal-oldnama').value = std.nama;
+        document.getElementById('murid-modal-nama').value = std.nama;
+        document.getElementById('murid-modal-kelas').value = std.kelas;
+        document.getElementById('murid-modal-delete').classList.remove('hidden');
+        document.getElementById('murid-modal').classList.remove('hidden');
+      }
+    }
+
+    function closeMuridModal() { document.getElementById('murid-modal').classList.add('hidden'); }
+
+    function saveMurid() {
+      const oldNama = document.getElementById('murid-modal-oldnama').value;
+      const nama = document.getElementById('murid-modal-nama').value.trim();
+      const kelas = document.getElementById('murid-modal-kelas').value.trim();
+      
+      if(!nama || !kelas) return alert('Sila isi nama dan kelas!');
+      
+      setLoading(true, "Menyimpan Data...");
+      closeMuridModal();
+      
+      if(oldNama) {
+        apiCall('updateMurid', { oldNama, nama, kelas }).then(() => {
+          const idx = students.findIndex(s => s.nama === oldNama);
+          if(idx > -1) { 
+            students[idx].nama = nama; 
+            students[idx].kelas = kelas; 
+            students[idx].domId = nama.replace(/[^a-zA-Z0-9]/g, '_');
+          }
+          rebuildClasses();
+          document.getElementById('kelas-select').value = kelas;
+          renderStudents();
+          setLoading(false);
+        }).catch(err => { alert('Gagal: ' + err); setLoading(false); });
+      } else {
+        apiCall('addMurid', { nama, kelas }).then(() => {
+          students.push({ nama, kelas, prestasi: 0, domId: nama.replace(/[^a-zA-Z0-9]/g, '_') });
+          rebuildClasses();
+          document.getElementById('kelas-select').value = kelas;
+          renderStudents();
+          setLoading(false);
+        }).catch(err => { alert('Gagal: ' + err); setLoading(false); });
+      }
+    }
+
+    function deleteMuridAction() {
+      const nama = document.getElementById('murid-modal-oldnama').value;
+      if(!nama) return;
+      if(confirm('Padam rekod ini secara kekal?')) {
+        closeMuridModal();
+        setLoading(true, "Memadam Data...");
+        apiCall('deleteMurid', { nama }).then(() => {
+          students = students.filter(s => s.nama !== nama);
+          rebuildClasses();
+          renderStudents();
+          setLoading(false);
+        }).catch(err => { alert('Gagal: ' + err); setLoading(false); });
+      }
+    }
+
+    function rebuildClasses() {
+      classes = [...new Set(students.map(s => s.kelas))];
+      const curr = document.getElementById('kelas-select').value;
+      let html = '<option value="">-- Sila Pilih Kelas --</option>';
+      classes.forEach(c => { html += `<option value="${c}">${c}</option>`; });
+      document.getElementById('kelas-select').innerHTML = html;
+      if(classes.includes(curr)) document.getElementById('kelas-select').value = curr;
+    }
+
+    async function fetchGPS() {
+      return new Promise((resolve) => {
+        if (!navigator.geolocation) return resolve("GPS Tidak Disokong");
+        navigator.geolocation.getCurrentPosition(
+          (pos) => resolve(`${pos.coords.latitude}, ${pos.coords.longitude}`),
+          () => resolve("Lokasi Tidak Dibenarkan")
+        );
+      });
+    }
+
+    function compressImage(file) {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const max_w = 400;
+            const scale = max_w / img.width;
+            canvas.width = max_w;
+            canvas.height = img.height * scale;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            resolve(canvas.toDataURL('image/jpeg', 0.6));
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function submitAttendance() {
+      const guru = document.getElementById('guru-select').value;
+      const kelas = document.getElementById('kelas-select').value;
+      
+      if(!guru || !kelas) return alert('Sila pilih nama guru & kelas!');
+      
+      const stdInClass = students.filter(s => s.kelas === kelas);
+      if(stdInClass.length === 0) return alert('Tiada murid.');
+
+      setLoading(true, "Mendapatkan GPS & Menghantar...");
+      const gps = await fetchGPS();
+
+      const muridData = stdInClass.map(std => {
+        const hadir = document.getElementById(`hadir-${std.domId}`).checked;
+        const bintang = parseInt(document.getElementById(`star-val-${std.domId}`).innerText);
+        return { nama: std.nama, hadir, bintang };
+      });
+
+      const payload = { type: 'attendance', guru, kelas, muridData, gps, timestamp: new Date().toISOString() };
+
+      handleSubmission('processAttendance', payload, "Kehadiran Berjaya Direkodkan!");
+    }
+
+    async function submitReport() {
+      const guru = document.getElementById('guru-select').value;
+      const kelas = document.getElementById('kelas-select').value;
+      const ulasan = document.getElementById('ulasan').value;
+      const fileInput = document.getElementById('gambar-bukti').files[0];
+
+      if(!guru || !kelas) return alert('Sila pilih nama guru & kelas!');
+      if(!ulasan && !fileInput) return alert('Sila isi ulasan atau muat naik gambar!');
+
+      setLoading(true, "Memproses Pelaporan...");
+      const gps = await fetchGPS();
+      let base64Img = "";
+      if (fileInput) base64Img = await compressImage(fileInput);
+
+      const payload = { type: 'report', guru, kelas, ulasan, gambar: base64Img, gps, timestamp: new Date().toISOString() };
+
+      handleSubmission('processReport', payload, "Pelaporan Sesi Berjaya Dihantar!");
+    }
+
+    function handleSubmission(endpoint, payload, successMsg) {
+      if (navigator.onLine) {
+        apiCall(endpoint, payload).then(res => {
+          setLoading(false);
+          alert(`${successMsg}\nPoint Guru Terkumpul Terkini: +${res.pointsEarned}`);
+          if(endpoint === 'processReport') {
+            document.getElementById('ulasan').value = '';
+            document.getElementById('gambar-bukti').value = '';
+          }
+          loadInitialData(); 
+        }).catch(err => {
+          setLoading(false);
+          alert('Ralat Pelayan: ' + err);
+        });
+      } else {
+        setLoading(false);
+        offlineQueue.push({ endpoint, payload });
+        localStorage.setItem('offlineQueue', JSON.stringify(offlineQueue));
+        alert("Talian terputus. Disimpan ke Memori Luar Talian.");
+      }
+    }
+
+    function setLoading(show, text = "Memuat...") {
+      const el = document.getElementById('loading-overlay');
+      document.getElementById('loading-text').innerText = text;
+      if(show) el.classList.remove('hidden');
+      else el.classList.add('hidden');
+    }
+
+    function checkNetwork() {
+      const indicator = document.getElementById('status-indicator');
+      if (navigator.onLine) {
+        indicator.innerText = '🟢 Online';
+        indicator.classList.replace('text-red-500', 'text-green-600');
+        syncOfflineData();
+      } else {
+        indicator.innerText = '🔴 Offline';
+        indicator.classList.replace('text-green-600', 'text-red-500');
+      }
+    }
+
+    window.addEventListener('online', checkNetwork);
+    window.addEventListener('offline', checkNetwork);
+
+    async function syncOfflineData() {
+      if (offlineQueue.length > 0) {
+        const queueCopy = [...offlineQueue];
+        offlineQueue = [];
+        localStorage.setItem('offlineQueue', '[]');
+        for (const item of queueCopy) {
+          try {
+            await apiCall(item.endpoint, item.payload);
+          } catch(e) {
+            offlineQueue.push(item);
+            localStorage.setItem('offlineQueue', JSON.stringify(offlineQueue));
+          }
+        }
+        if(offlineQueue.length === 0) alert("Data luar talian disegerakkan sepenuhnya!");
+      }
+    }
+
+    function openAdmin() { document.getElementById('admin-panel').classList.remove('hidden'); }
+    function closeAdmin() { document.getElementById('admin-panel').classList.add('hidden'); }
+
+    window.onload = () => {
+      loadInitialData();
+      checkNetwork();
+    };
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(err => console.log('SW Reg Failed', err));
+      });
+    }
+  </script>
+</body>
+</html>
