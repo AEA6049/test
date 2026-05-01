@@ -12,7 +12,7 @@
     // KONFIGURASI UTAMA SISTEM (Ubah suai di sini)
     // ==========================================
     const APP_CONFIG = {
-      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbzsMVMcIptUSpGHj1B6_UmDJ6F_W76rTjAftNGGSX4g6iHL6nkQYNySnATSOSEv8jqhUw/exec"
+      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbz7p1JmrBx1r34DwdFvmDEvSWaJtn5SyiH2WDTqPiqVw-3QUUXQpslxOlmSiE1ppnBByA/exec"
     };
   </script>
   <style>
@@ -65,10 +65,6 @@
     .neu-btn-gold:active {
       background: var(--accent-gold-dark);
     }
-    .neu-btn-disabled {
-      opacity: 0.5;
-      pointer-events: none;
-    }
     .glass-panel {
       background: var(--panel-bg);
       backdrop-filter: blur(12px);
@@ -78,7 +74,6 @@
       color: var(--text-main);
     }
     .hidden { display: none !important; }
-    .star-gold { color: var(--accent-gold); fill: var(--accent-gold); }
     
     /* Checkbox custom style */
     input[type="checkbox"] {
@@ -147,6 +142,11 @@
         </button>
       </div>
 
+      <!-- Summary Pelaporan Kehadiran -->
+      <div id="attendance-summary" class="neu-flat p-4 mt-6 text-center font-bold text-yellow-500 hidden border border-yellow-500/20">
+        <!-- Data injected via JS -->
+      </div>
+
       <button onclick="submitAttendance()" class="w-full mt-6 py-4 text-lg font-bold rounded-2xl neu-btn-gold flex justify-center items-center gap-2">
         <i data-lucide="clipboard-check" class="w-5 h-5"></i> Kemaskini Markah Hari Ini
       </button>
@@ -155,13 +155,12 @@
     <!-- Pelaporan Tab (OPTIONAL) -->
     <section id="tab-pelaporan" class="neu-flat p-5 hidden border border-yellow-500/20">
       <h2 class="text-lg font-bold mb-2 text-yellow-500">Pelaporan Sesi & Dokumentasi</h2>
-      <p class="text-xs text-gray-400 mb-4">Muat naik gambar atau fail tanpa had untuk +10 Point Prestasi Guru.</p>
+      <p class="text-xs text-gray-400 mb-4">Muat naik gambar atau fail tanpa had (1 Fail = 1 Point). Ulasan (>100 perkataan = 5 Point, <100 perkataan = 2 Point).</p>
       
       <label class="block text-sm font-bold mb-2 text-yellow-500">Ulasan (Bertulis)</label>
       <textarea id="ulasan" rows="4" class="w-full p-3 neu-pressed outline-none mb-4" placeholder="Ulasan sesi pengajaran..."></textarea>
       
       <label class="block text-sm font-bold mb-2 text-yellow-500">Lampiran Fail (Gambar / Dokumen)</label>
-      <!-- MULTIPLE UPLOAD ENABLED -->
       <input type="file" id="gambar-bukti" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" class="w-full p-2 neu-pressed text-sm mb-6 file:bg-yellow-500 file:text-black file:border-0 file:rounded-xl file:px-4 file:py-2 file:mr-4 file:font-bold">
 
       <button onclick="submitReport()" class="w-full py-4 text-lg font-bold rounded-2xl bg-yellow-500 text-black shadow-lg flex justify-center items-center gap-2 hover:bg-yellow-400">
@@ -202,9 +201,11 @@
       </button>
       <h2 class="text-xl font-bold mb-4 text-yellow-500">Status PWA & Maklumat</h2>
       <div class="space-y-4 text-sm text-gray-300">
-        <p>Aplikasi ini mematuhi format Sheet yang dikemaskini. Sokongan <b>Kemaskini Markah Hari Yang Sama</b> telah diaktifkan.</p>
-        <p>Guru boleh memuat naik <b>Fail Tanpa Had</b> (Gambar/PDF/Doc) pada tab Dokumentasi Sesi.</p>
-        <p>Tema telah ditukar kepada <b>Hitam & Kuning Diraja</b> mengikut permintaan.</p>
+        <p>Sistem Bintang telah diubah kepada 6 Ikon Bintang yang boleh diklik.</p>
+        <p>Senarai nama murid akan disusun secara automatik mengikut abjad (A-Z).</p>
+        <p>Murid baharu ditambah terus ke dalam kelasnya dengan tetapan hadir & 3 bintang secara automatik.</p>
+        <p>Terdapat ciri Rumusan Kehadiran di bawah senarai kelas untuk rujukan guru dengan pantas.</p>
+        <p>Markah Pelaporan: 1 fail = 1 Point, Ulasan > 100 perkataan = 5 Point, Ulasan Ringkas = 2 Point. Hanya admin boleh lihat markah keseluruhan.</p>
       </div>
     </div>
   </div>
@@ -287,10 +288,14 @@
       
       if(!selectedKelas) {
         container.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">Sila pilih kelas untuk papar senarai.</p>';
+        updateAttendanceSummary();
         return;
       }
       
       const filtered = students.filter(s => s.kelas === selectedKelas);
+      // Isih murid mengikut abjad (A-Z)
+      filtered.sort((a, b) => a.nama.localeCompare(b.nama));
+
       if(filtered.length === 0) {
         container.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">Tiada nama di dalam kelas ini.</p>';
       }
@@ -298,14 +303,24 @@
       const todayStr = getTodayString();
 
       filtered.forEach((std) => {
-        // LOGIK KEMASKINI HARI YANG SAMA
+        // Default kepada Hadir dan 3 Bintang jika data baru/hari baru (Termasuk murid baru yang tiada tarikhTerakhir)
         let currentStar = 3;
         let isChecked = true;
         
         if (std.tarikhTerakhir === todayStr) {
-            // Jika hari ini sudah dikemaskini, papar markah terakhir
             currentStar = std.bintangTerakhir;
-            isChecked = currentStar > 0; // Jika 0, dianggap tidak hadir/tiada bintang
+            isChecked = currentStar > 0; 
+        }
+
+        // Janaan 6 Ikon Bintang
+        let starHtml = '';
+        for(let i=1; i<=6; i++) {
+          let colorClass = (i <= currentStar && isChecked) ? 'text-yellow-500 fill-yellow-500' : 'text-gray-600 fill-transparent';
+          let pointerClass = isChecked ? 'cursor-pointer hover:scale-110' : 'cursor-not-allowed opacity-50';
+          starHtml += `
+            <svg onclick="setStar('${std.domId}', ${i})" class="w-6 h-6 sm:w-7 sm:h-7 ${colorClass} ${pointerClass} transition-all duration-200" data-star="${i}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+            </svg>`;
         }
 
         const card = document.createElement('div');
@@ -324,45 +339,98 @@
             </button>
           </div>
           <div class="flex justify-between items-center mt-2">
-            <span class="text-sm font-semibold text-gray-400">Bintang Semasa (Hari Ini):</span>
-            <div class="flex items-center gap-3">
-              <button id="btn-minus-${std.domId}" onclick="updateStar('${std.domId}', -1)" class="neu-btn w-8 h-8 flex justify-center items-center font-bold ${isChecked ? '' : 'neu-btn-disabled'}">-</button>
-              <div class="flex items-center gap-1">
-                <i data-lucide="star" class="w-5 h-5 star-gold"></i>
-                <span id="star-val-${std.domId}" class="font-bold text-lg w-4 text-center text-yellow-500">${isChecked ? currentStar : 0}</span>
-              </div>
-              <button id="btn-plus-${std.domId}" onclick="updateStar('${std.domId}', 1)" class="neu-btn w-8 h-8 flex justify-center items-center font-bold ${isChecked ? '' : 'neu-btn-disabled'}">+</button>
+            <span class="text-sm font-semibold text-gray-400">Bintang:</span>
+            <div class="flex items-center gap-1" id="star-container-${std.domId}">
+              ${starHtml}
+              <input type="hidden" id="star-val-${std.domId}" value="${isChecked ? currentStar : 0}">
             </div>
           </div>
         `;
         container.appendChild(card);
       });
       lucide.createIcons();
+      updateAttendanceSummary();
+    }
+
+    function updateAttendanceSummary() {
+      const selectedKelas = document.getElementById('kelas-select').value;
+      const summaryDiv = document.getElementById('attendance-summary');
+      
+      if (!selectedKelas) {
+        summaryDiv.classList.add('hidden');
+        return;
+      }
+      
+      const stdInClass = students.filter(s => s.kelas === selectedKelas);
+      if (stdInClass.length === 0) {
+        summaryDiv.classList.add('hidden');
+        return;
+      }
+      
+      let absentCount = 0;
+      stdInClass.forEach(std => {
+        const cb = document.getElementById(`hadir-${std.domId}`);
+        if (cb && !cb.checked) {
+          absentCount++;
+        }
+      });
+      
+      const total = stdInClass.length;
+      const presentCount = total - absentCount;
+      
+      summaryDiv.classList.remove('hidden');
+      summaryDiv.innerHTML = `
+        <div class="text-sm text-gray-400 mb-1">Pelaporan Kehadiran Kelas ${selectedKelas}</div>
+        <div class="text-lg">
+          <span class="text-green-400">${presentCount} Hadir</span> <span class="text-gray-500 mx-2">|</span> <span class="text-red-400">${absentCount} Tidak Hadir</span>
+        </div>
+      `;
     }
 
     function toggleAttendance(domId) {
       const isChecked = document.getElementById(`hadir-${domId}`).checked;
-      const starVal = document.getElementById(`star-val-${domId}`);
-      const btnMinus = document.getElementById(`btn-minus-${domId}`);
-      const btnPlus = document.getElementById(`btn-plus-${domId}`);
+      const container = document.getElementById(`star-container-${domId}`);
+      const svgs = container.querySelectorAll('svg');
       
       if (!isChecked) {
-        starVal.innerText = '0';
-        btnMinus.classList.add('neu-btn-disabled');
-        btnPlus.classList.add('neu-btn-disabled');
+        document.getElementById(`star-val-${domId}`).value = 0;
+        svgs.forEach(svg => {
+          svg.classList.remove('text-yellow-500', 'fill-yellow-500', 'cursor-pointer', 'hover:scale-110');
+          svg.classList.add('text-gray-600', 'fill-transparent', 'cursor-not-allowed', 'opacity-50');
+        });
       } else {
-        starVal.innerText = '3'; // Default markah bila hadir
-        btnMinus.classList.remove('neu-btn-disabled');
-        btnPlus.classList.remove('neu-btn-disabled');
+        document.getElementById(`star-val-${domId}`).value = 3; // Hadir auto 3 Bintang
+        svgs.forEach((svg, index) => {
+          svg.classList.remove('cursor-not-allowed', 'opacity-50');
+          svg.classList.add('cursor-pointer', 'hover:scale-110');
+          if (index < 3) {
+            svg.classList.remove('text-gray-600', 'fill-transparent');
+            svg.classList.add('text-yellow-500', 'fill-yellow-500');
+          } else {
+            svg.classList.remove('text-yellow-500', 'fill-yellow-500');
+            svg.classList.add('text-gray-600', 'fill-transparent');
+          }
+        });
       }
+      updateAttendanceSummary();
     }
 
-    function updateStar(domId, change) {
-      const starEl = document.getElementById(`star-val-${domId}`);
-      let current = parseInt(starEl.innerText);
-      let newVal = current + change;
-      // Had harian 0-6 bintang
-      if (newVal >= 0 && newVal <= 6) starEl.innerText = newVal;
+    function setStar(domId, val) {
+      const isChecked = document.getElementById(`hadir-${domId}`).checked;
+      if(!isChecked) return; // Tidak boleh tekan bintang jika tak hadir
+      
+      document.getElementById(`star-val-${domId}`).value = val;
+      const container = document.getElementById(`star-container-${domId}`);
+      const svgs = container.querySelectorAll('svg');
+      svgs.forEach((svg, index) => {
+        if (index < val) {
+          svg.classList.remove('text-gray-600', 'fill-transparent');
+          svg.classList.add('text-yellow-500', 'fill-yellow-500');
+        } else {
+          svg.classList.remove('text-yellow-500', 'fill-yellow-500');
+          svg.classList.add('text-gray-600', 'fill-transparent');
+        }
+      });
     }
 
     function switchMainTab(tab) {
@@ -482,7 +550,7 @@
           const img = new Image();
           img.onload = () => {
             const canvas = document.createElement('canvas');
-            const max_w = 600; // Ditingkatkan sedikit untuk kualiti dokumen
+            const max_w = 600;
             const scale = Math.min(max_w / img.width, 1);
             canvas.width = img.width * scale;
             canvas.height = img.height * scale;
@@ -539,7 +607,7 @@
 
       const muridData = stdInClass.map(std => {
         const hadir = document.getElementById(`hadir-${std.domId}`).checked;
-        const bintang = parseInt(document.getElementById(`star-val-${std.domId}`).innerText);
+        const bintang = parseInt(document.getElementById(`star-val-${std.domId}`).value);
         return { nama: std.nama, hadir, bintang };
       });
 
