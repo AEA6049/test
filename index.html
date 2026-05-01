@@ -7,12 +7,14 @@
   <link rel="manifest" href="manifest.json">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Pustaka html2pdf untuk cetakan PDF Laporan -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <script>
     // ==========================================
     // KONFIGURASI UTAMA SISTEM (Ubah suai di sini)
     // ==========================================
     const APP_CONFIG = {
-      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbwg20T-PmyibY5Y_s7nnLycN7zad8441TDu06Nh8M2ZSV4kIvTfIp4-NhF3lgJZkwqqyw/exec"
+      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbwvtp_-VFJ6jjDSsLfqJgv7459AOrKrvuwdsMI2ek9NUpdTEL0HkYhJ6OAuI3bjy0FXxA/exec"
     };
   </script>
   <style>
@@ -23,7 +25,7 @@
       --shadow-dark: #050505;
       --text-main: #f3f4f6;
       --text-muted: #9ca3af;
-      --accent-gold: #FFCC00; /* Kuning Diraja */
+      --accent-gold: #FFCC00; 
       --accent-gold-dark: #b38f00;
       --panel-bg: rgba(26, 26, 26, 0.8);
     }
@@ -74,10 +76,10 @@
       color: var(--text-main);
     }
     .hidden { display: none !important; }
-    
-    /* Checkbox custom style */
-    input[type="checkbox"] {
-      accent-color: var(--accent-gold);
+    input[type="checkbox"] { accent-color: var(--accent-gold); }
+    input[type="date"]::-webkit-calendar-picker-indicator {
+      filter: invert(1);
+      cursor: pointer;
     }
   </style>
 </head>
@@ -112,7 +114,7 @@
       </select>
       
       <label class="block text-sm font-bold mb-2 text-yellow-500">Kelas</label>
-      <select id="kelas-select" class="w-full p-3 neu-pressed outline-none" onchange="renderStudents()">
+      <select id="kelas-select" class="w-full p-3 neu-pressed outline-none" onchange="handleKelasChange()">
         <option value="">-- Sedang memuat --</option>
       </select>
     </section>
@@ -127,10 +129,17 @@
       </button>
     </div>
 
-    <!-- Kehadiran Tab (MANDATORY) -->
+    <!-- Kehadiran Tab -->
     <section id="tab-kehadiran" class="space-y-4">
+      <div class="flex flex-col mb-4 bg-gray-900 p-4 rounded-2xl border border-yellow-500/20">
+        <label class="block text-sm font-bold mb-2 text-yellow-500">Tarikh Kehadiran</label>
+        <input type="date" id="tarikh-kehadiran" class="w-full p-3 neu-pressed outline-none text-gray-200 font-bold" onchange="checkKehadiranDate()">
+        <p class="text-xs text-gray-400 mt-2">*Ubah tarikh untuk melihat atau mengemaskini markah lepas.</p>
+        <p id="amaran-tarikh-kehadiran" class="text-xs text-red-400 mt-1 font-bold hidden">*PERHATIAN: Kemaskini untuk tarikh lepas (bukan hari ini) HANYA sekadar simpanan rekod dan TIDAK akan memberikan sebarang markah atau bintang.</p>
+      </div>
+
       <div class="flex justify-between items-center mb-2 pl-2">
-        <h2 class="text-lg font-bold text-yellow-500">Senarai Murid & Bintang Semasa</h2>
+        <h2 class="text-lg font-bold text-yellow-500">Senarai Murid & Bintang</h2>
       </div>
       <div id="student-list" class="space-y-4">
         <!-- Dynamic Student Cards here -->
@@ -142,30 +151,58 @@
         </button>
       </div>
 
-      <!-- Summary Pelaporan Kehadiran -->
-      <div id="attendance-summary" class="neu-flat p-4 mt-6 text-center font-bold text-yellow-500 hidden border border-yellow-500/20">
-        <!-- Data injected via JS -->
-      </div>
+      <div id="attendance-summary" class="neu-flat p-4 mt-6 text-center font-bold text-yellow-500 hidden border border-yellow-500/20"></div>
 
       <button onclick="submitAttendance()" class="w-full mt-6 py-4 text-lg font-bold rounded-2xl neu-btn-gold flex justify-center items-center gap-2">
-        <i data-lucide="clipboard-check" class="w-5 h-5"></i> Kemaskini Markah Hari Ini
+        <i data-lucide="clipboard-check" class="w-5 h-5"></i> Simpan Kemaskini Markah
       </button>
     </section>
 
-    <!-- Pelaporan Tab (OPTIONAL) -->
+    <!-- Pelaporan Tab -->
     <section id="tab-pelaporan" class="neu-flat p-5 hidden border border-yellow-500/20">
-      <h2 class="text-lg font-bold mb-2 text-yellow-500">Pelaporan Sesi & Dokumentasi</h2>
-      <p class="text-xs text-gray-400 mb-4">Muat naik gambar atau fail tanpa had (1 Fail = 1 Point). Ulasan (>100 perkataan = 5 Point, <100 perkataan = 2 Point).</p>
       
-      <label class="block text-sm font-bold mb-2 text-yellow-500">Ulasan (Bertulis)</label>
-      <textarea id="ulasan" rows="4" class="w-full p-3 neu-pressed outline-none mb-4" placeholder="Ulasan sesi pengajaran..."></textarea>
-      
-      <label class="block text-sm font-bold mb-2 text-yellow-500">Lampiran Fail (Gambar / Dokumen)</label>
-      <input type="file" id="gambar-bukti" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" class="w-full p-2 neu-pressed text-sm mb-6 file:bg-yellow-500 file:text-black file:border-0 file:rounded-xl file:px-4 file:py-2 file:mr-4 file:font-bold">
+      <!-- Sub-Tabs Pelaporan -->
+      <div class="flex space-x-2 mb-6 border-b border-gray-700 pb-2">
+        <button id="subtab-baru" onclick="switchReportTab('baru')" class="text-yellow-500 font-bold px-2 py-1 border-b-2 border-yellow-500 transition">Laporan Baru</button>
+        <button id="subtab-sejarah" onclick="switchReportTab('sejarah')" class="text-gray-400 font-bold px-2 py-1 border-b-2 border-transparent transition">Sejarah Laporan</button>
+      </div>
 
-      <button onclick="submitReport()" class="w-full py-4 text-lg font-bold rounded-2xl bg-yellow-500 text-black shadow-lg flex justify-center items-center gap-2 hover:bg-yellow-400">
-        <i data-lucide="send" class="w-5 h-5"></i> Hantar Laporan Sesi
-      </button>
+      <!-- Laporan Baru -->
+      <div id="pelaporan-baru-section">
+        <h2 class="text-lg font-bold mb-2 text-yellow-500">Laporan Sesi & Dokumentasi</h2>
+        <p class="text-xs text-gray-400 mb-4">Muat naik fail tanpa had. (1 Fail = 1 Point. Ulasan panjang = 5 Point).</p>
+        
+        <label class="block text-sm font-bold mb-2 text-yellow-500">Tarikh Laporan</label>
+        <input type="date" id="tarikh-laporan-baru" class="w-full p-3 neu-pressed outline-none text-gray-200 font-bold mb-2" onchange="checkLaporanDate()">
+        <p id="amaran-tarikh-laporan" class="text-xs text-red-400 mb-4 font-bold hidden">*PERHATIAN: Laporan untuk tarikh lepas (bukan hari ini) TIDAK akan memberikan sebarang point. Demi integriti.</p>
+
+        <label class="block text-sm font-bold mb-2 text-yellow-500">Ulasan Sesi</label>
+        <textarea id="ulasan" rows="4" class="w-full p-3 neu-pressed outline-none mb-4" placeholder="Ulasan ringkas atau padat..."></textarea>
+        
+        <label class="block text-sm font-bold mb-2 text-yellow-500">Lampiran Bukti (Gambar / Dokumen)</label>
+        <input type="file" id="gambar-bukti" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" class="w-full p-2 neu-pressed text-sm mb-6 file:bg-yellow-500 file:text-black file:border-0 file:rounded-xl file:px-4 file:py-2 file:mr-4 file:font-bold">
+
+        <button onclick="submitReport()" class="w-full py-4 text-lg font-bold rounded-2xl bg-yellow-500 text-black shadow-lg flex justify-center items-center gap-2 hover:bg-yellow-400">
+          <i data-lucide="send" class="w-5 h-5"></i> Hantar Laporan Sesi
+        </button>
+      </div>
+
+      <!-- Sejarah Laporan -->
+      <div id="pelaporan-sejarah-section" class="hidden space-y-4">
+        <div class="flex flex-col bg-gray-900 p-4 rounded-2xl">
+           <label class="block text-sm font-bold mb-2 text-yellow-500">Cari Mengikut Tarikh</label>
+           <div class="flex gap-2">
+             <input type="date" id="tarikh-sejarah-laporan" class="flex-1 p-3 neu-pressed outline-none text-gray-200 font-bold">
+             <button onclick="fetchReportHistory()" class="neu-btn p-3 px-4 flex items-center justify-center">
+               <i data-lucide="search" class="w-5 h-5"></i>
+             </button>
+           </div>
+        </div>
+        <div id="report-history-container" class="space-y-4">
+          <p class="text-sm text-gray-500 text-center py-4">Sila pilih tarikh untuk melihat sejarah laporan.</p>
+        </div>
+      </div>
+
     </section>
 
   </main>
@@ -201,10 +238,10 @@
       </button>
       <h2 class="text-xl font-bold mb-4 text-yellow-500">Status PWA & Maklumat</h2>
       <div class="space-y-4 text-sm text-gray-300">
-        <p>⭐ <b>Prestasi Guru:</b> Maksima 5 markah tambahan sehari akan diberikan jika berjaya menghantar log kehadiran. Guru juga akan menerima tambahan 1 point untuk setiap kemaskini bintang murid (selain 3 bintang).</p>
-        <p>👨‍🎓 <b>Susunan Murid:</b> Senarai nama murid <b>tidak lagi disusun secara abjad</b> mengikut permintaan. Murid baharu yang ditambah akan diletakkan di bahagian paling bawah senarai kelasnya.</p>
-        <p>📚 <b>Prestasi Murid:</b> Jumlah markah/bintang terkumpul dipaparkan terus pada sebelah nama murid bagi menyuntik semangat dan motivasi mereka.</p>
-        <p>📁 <b>Dokumentasi:</b> 1 fail = 1 Point, Ulasan > 100 perkataan = 5 Point, Ulasan Ringkas = 2 Point.</p>
+        <p>⭐ <b>Prestasi & Integriti:</b> Sistem markah (guru & murid) HANYA sah untuk hari semasa sahaja. Kemaskini hari lepas hanya menyimpan rekod (0 point).</p>
+        <p>🗺️ <b>Pemetaan GPS:</b> Koordinat GPS kini dihubungkan terus ke Google Maps untuk semakan pantas.</p>
+        <p>📅 <b>Sejarah Kehadiran:</b> Guru kini boleh mengemaskini markah pada tarikh lepas melalui kalendar terbina.</p>
+        <p>📄 <b>Eksport Laporan:</b> Menyokong penjanaan PDF untuk laporan lepas yang boleh dicetak terus.</p>
       </div>
     </div>
   </div>
@@ -216,6 +253,7 @@
     let classes = [];
     let teachers = [];
     let offlineQueue = JSON.parse(localStorage.getItem('offlineQueue') || '[]');
+    let currentHistoryData = null; // Menyimpan data kehadiran masa lalu jika dicari
 
     async function apiCall(action, payload = null) {
       if (typeof google !== 'undefined' && google.script) {
@@ -226,6 +264,8 @@
           else if (action === 'deleteMurid') google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).deleteMurid(payload);
           else if (action === 'processAttendance') google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).processAttendance(payload);
           else if (action === 'processReport') google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).processReport(payload);
+          else if (action === 'getAttendanceHistory') google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).getAttendanceHistory(payload);
+          else if (action === 'getReportHistory') google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).getReportHistory(payload);
         });
       } else {
         const url = APP_CONFIG.GAS_WEB_APP_URL + "?action=" + action;
@@ -243,8 +283,21 @@
       }
     }
 
+    function getTodayString() {
+      const d = new Date();
+      return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, '0') + "-" + String(d.getDate()).padStart(2, '0');
+    }
+
     function loadInitialData() {
       setLoading(true, "Memuat Turun Data...");
+      document.getElementById('tarikh-kehadiran').value = getTodayString();
+      document.getElementById('tarikh-laporan-baru').value = getTodayString();
+      document.getElementById('tarikh-sejarah-laporan').value = getTodayString();
+
+      // Pastikan amaran disembunyikan pada permulaan
+      checkKehadiranDate(true);
+      checkLaporanDate(true);
+
       apiCall('getInitialData').then(data => {
         students = data.murid.map(m => ({ ...m, domId: m.nama.replace(/[^a-zA-Z0-9]/g, '_') })) || [];
         teachers = data.guru || [];
@@ -254,14 +307,30 @@
         setLoading(false);
       }).catch(err => {
         console.error(err);
-        alert("Gagal menyambung. Menggunakan data demo luar talian.");
-        students = [{ nama: 'Data Ujian', kelas: '1 Amanah', prestasi: 12, tarikhTerakhir: '', bintangTerakhir: 0, domId: 'Data_Ujian' }];
-        classes = ['1 Amanah'];
-        teachers = ['Guru Ujian'];
-        populateSelects();
-        renderStudents();
+        alert("Gagal menyambung. Menggunakan mod luar talian.");
         setLoading(false);
       });
+    }
+
+    function checkKehadiranDate(skipFetch = false) {
+      const tarikh = document.getElementById('tarikh-kehadiran').value;
+      const amaran = document.getElementById('amaran-tarikh-kehadiran');
+      if (tarikh !== getTodayString()) {
+        amaran.classList.remove('hidden');
+      } else {
+        amaran.classList.add('hidden');
+      }
+      if (!skipFetch) fetchAttendanceHistory();
+    }
+
+    function checkLaporanDate(skipAction = false) {
+      const tarikh = document.getElementById('tarikh-laporan-baru').value;
+      const amaran = document.getElementById('amaran-tarikh-laporan');
+      if (tarikh !== getTodayString()) {
+        amaran.classList.remove('hidden');
+      } else {
+        amaran.classList.add('hidden');
+      }
     }
 
     function populateSelects() {
@@ -271,19 +340,47 @@
       guruSel.innerHTML = '<option value="">-- Pilih Nama Guru --</option>';
       teachers.forEach(g => { guruSel.innerHTML += `<option value="${g}">${g}</option>`; });
       
+      const currentKelas = kelasSel.value;
       kelasSel.innerHTML = '<option value="">-- Sila Pilih Kelas --</option>';
       classes.forEach(c => { kelasSel.innerHTML += `<option value="${c}">${c}</option>`; });
+      if(classes.includes(currentKelas)) kelasSel.value = currentKelas;
     }
 
-    function getTodayString() {
-      const d = new Date();
-      return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, '0') + "-" + String(d.getDate()).padStart(2, '0');
+    function handleKelasChange() {
+      fetchAttendanceHistory();
+    }
+
+    function fetchAttendanceHistory() {
+      const tarikh = document.getElementById('tarikh-kehadiran').value;
+      const kelas = document.getElementById('kelas-select').value;
+      
+      if (!kelas || !tarikh) return renderStudents();
+
+      if (tarikh === getTodayString()) {
+          currentHistoryData = null;
+          renderStudents();
+          return;
+      }
+
+      setLoading(true, "Mencari Sejarah...");
+      apiCall('getAttendanceHistory', { tarikh, kelas }).then(res => {
+         currentHistoryData = res.data; // Boleh null jika tiada rekod
+         renderStudents();
+         setLoading(false);
+      }).catch(err => {
+         alert("Gagal mendapatkan sejarah.");
+         currentHistoryData = null;
+         renderStudents();
+         setLoading(false);
+      });
     }
 
     function renderStudents() {
       const container = document.getElementById('student-list');
       container.innerHTML = '';
       const selectedKelas = document.getElementById('kelas-select').value;
+      const tarikhPilihan = document.getElementById('tarikh-kehadiran').value;
+      const todayStr = getTodayString();
       
       if(!selectedKelas) {
         container.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">Sila pilih kelas untuk papar senarai.</p>';
@@ -292,26 +389,40 @@
       }
       
       const filtered = students.filter(s => s.kelas === selectedKelas);
-      // NOTA FORENSIK: Arahan .sort() dibuang supaya murid yang baru ditambah
-      // akan dipaparkan secara automatik di bahagian paling bawah senarai.
-
       if(filtered.length === 0) {
         container.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">Tiada nama di dalam kelas ini.</p>';
       }
       
-      const todayStr = getTodayString();
+      // Map sejarah data jika wujud
+      let historyMap = {};
+      if (currentHistoryData) {
+         currentHistoryData.forEach(item => {
+             historyMap[item.nama] = item;
+         });
+      }
 
       filtered.forEach((std) => {
-        // Default kepada Hadir dan 3 Bintang jika data baru/hari baru (Termasuk murid baru yang tiada tarikhTerakhir)
         let currentStar = 3;
         let isChecked = true;
-        
-        if (std.tarikhTerakhir === todayStr) {
-            currentStar = std.bintangTerakhir;
-            isChecked = currentStar > 0; 
+
+        if (tarikhPilihan !== todayStr) {
+            // Mod Sejarah
+            if (historyMap[std.nama]) {
+                currentStar = historyMap[std.nama].bintang;
+                isChecked = historyMap[std.nama].hadir;
+            } else {
+                // Jika murid wujud sekarang tp tiada dlm sejarah, default kpd tiada rekod (0 bintang/tak hadir)
+                currentStar = 0;
+                isChecked = false;
+            }
+        } else {
+            // Mod Hari Ini
+            if (std.tarikhTerakhir === todayStr) {
+                currentStar = std.bintangTerakhir;
+                isChecked = currentStar > 0;
+            }
         }
 
-        // Janaan 6 Ikon Bintang
         let starHtml = '';
         for(let i=1; i<=6; i++) {
           let colorClass = (i <= currentStar && isChecked) ? 'text-yellow-500 fill-yellow-500' : 'text-gray-600 fill-transparent';
@@ -379,7 +490,7 @@
       
       summaryDiv.classList.remove('hidden');
       summaryDiv.innerHTML = `
-        <div class="text-sm text-gray-400 mb-1">Pelaporan Kehadiran Kelas ${selectedKelas}</div>
+        <div class="text-sm text-gray-400 mb-1">Analisis Kehadiran Kelas ${selectedKelas}</div>
         <div class="text-lg">
           <span class="text-green-400">${presentCount} Hadir</span> <span class="text-gray-500 mx-2">|</span> <span class="text-red-400">${absentCount} Tidak Hadir</span>
         </div>
@@ -398,7 +509,7 @@
           svg.classList.add('text-gray-600', 'fill-transparent', 'cursor-not-allowed', 'opacity-50');
         });
       } else {
-        document.getElementById(`star-val-${domId}`).value = 3; // Hadir auto 3 Bintang
+        document.getElementById(`star-val-${domId}`).value = 3;
         svgs.forEach((svg, index) => {
           svg.classList.remove('cursor-not-allowed', 'opacity-50');
           svg.classList.add('cursor-pointer', 'hover:scale-110');
@@ -416,7 +527,7 @@
 
     function setStar(domId, val) {
       const isChecked = document.getElementById(`hadir-${domId}`).checked;
-      if(!isChecked) return; // Tidak boleh tekan bintang jika tak hadir
+      if(!isChecked) return;
       
       document.getElementById(`star-val-${domId}`).value = val;
       const container = document.getElementById(`star-container-${domId}`);
@@ -449,8 +560,26 @@
       }
     }
 
+    function switchReportTab(sub) {
+      const isBaru = sub === 'baru';
+      document.getElementById('pelaporan-baru-section').classList.toggle('hidden', !isBaru);
+      document.getElementById('pelaporan-sejarah-section').classList.toggle('hidden', isBaru);
+      
+      const btnBaru = document.getElementById('subtab-baru');
+      const btnSejarah = document.getElementById('subtab-sejarah');
+
+      if (isBaru) {
+        btnBaru.className = "text-yellow-500 font-bold px-2 py-1 border-b-2 border-yellow-500 transition";
+        btnSejarah.className = "text-gray-400 font-bold px-2 py-1 border-b-2 border-transparent transition";
+      } else {
+        btnSejarah.className = "text-yellow-500 font-bold px-2 py-1 border-b-2 border-yellow-500 transition";
+        btnBaru.className = "text-gray-400 font-bold px-2 py-1 border-b-2 border-transparent transition";
+        fetchReportHistory(); // Auto fetch current date on tab open
+      }
+    }
+
     function openAddMurid() {
-      if(!navigator.onLine) return alert('Memerlukan internet untuk tambah murid.');
+      if(!navigator.onLine) return alert('Memerlukan internet untuk operasi ini.');
       document.getElementById('murid-modal-title').innerText = 'Tambah Murid Baharu';
       document.getElementById('murid-modal-oldnama').value = '';
       document.getElementById('murid-modal-nama').value = '';
@@ -460,7 +589,7 @@
     }
 
     function editMurid(nama) {
-      if(!navigator.onLine) return alert('Memerlukan internet untuk ubah suai.');
+      if(!navigator.onLine) return alert('Memerlukan internet untuk operasi ini.');
       const std = students.find(s => s.nama === nama);
       if(std) {
         document.getElementById('murid-modal-title').innerText = 'Ubah Suai Murid';
@@ -486,24 +615,11 @@
       
       if(oldNama) {
         apiCall('updateMurid', { oldNama, nama, kelas }).then(() => {
-          const idx = students.findIndex(s => s.nama === oldNama);
-          if(idx > -1) { 
-            students[idx].nama = nama; 
-            students[idx].kelas = kelas; 
-            students[idx].domId = nama.replace(/[^a-zA-Z0-9]/g, '_');
-          }
-          rebuildClasses();
-          document.getElementById('kelas-select').value = kelas;
-          renderStudents();
-          setLoading(false);
+          loadInitialData(); // Force full reload for sync
         }).catch(err => { alert('Gagal: ' + err); setLoading(false); });
       } else {
         apiCall('addMurid', { nama, kelas }).then(() => {
-          students.push({ nama, kelas, prestasi: 0, tarikhTerakhir: '', bintangTerakhir: 0, domId: nama.replace(/[^a-zA-Z0-9]/g, '_') });
-          rebuildClasses();
-          document.getElementById('kelas-select').value = kelas;
-          renderStudents();
-          setLoading(false);
+          loadInitialData();
         }).catch(err => { alert('Gagal: ' + err); setLoading(false); });
       }
     }
@@ -515,29 +631,17 @@
         closeMuridModal();
         setLoading(true, "Memadam Data...");
         apiCall('deleteMurid', { nama }).then(() => {
-          students = students.filter(s => s.nama !== nama);
-          rebuildClasses();
-          renderStudents();
-          setLoading(false);
+          loadInitialData();
         }).catch(err => { alert('Gagal: ' + err); setLoading(false); });
       }
     }
 
-    function rebuildClasses() {
-      classes = [...new Set(students.map(s => s.kelas))];
-      const curr = document.getElementById('kelas-select').value;
-      let html = '<option value="">-- Sila Pilih Kelas --</option>';
-      classes.forEach(c => { html += `<option value="${c}">${c}</option>`; });
-      document.getElementById('kelas-select').innerHTML = html;
-      if(classes.includes(curr)) document.getElementById('kelas-select').value = curr;
-    }
-
     async function fetchGPS() {
       return new Promise((resolve) => {
-        if (!navigator.geolocation) return resolve("GPS Tidak Disokong");
+        if (!navigator.geolocation) return resolve("Tiada GPS");
         navigator.geolocation.getCurrentPosition(
           (pos) => resolve(`${pos.coords.latitude}, ${pos.coords.longitude}`),
-          () => resolve("Lokasi Tidak Dibenarkan")
+          () => resolve("Lokasi Ditolak")
         );
       });
     }
@@ -549,7 +653,7 @@
           const img = new Image();
           img.onload = () => {
             const canvas = document.createElement('canvas');
-            const max_w = 600;
+            const max_w = 800;
             const scale = Math.min(max_w / img.width, 1);
             canvas.width = img.width * scale;
             canvas.height = img.height * scale;
@@ -585,7 +689,7 @@
         processed.push({
           name: file.name,
           mimeType: file.type,
-          data: b64.split(',')[1] // Buang data uri prefix untuk GAS
+          data: b64.split(',')[1]
         });
       }
       return processed;
@@ -594,15 +698,15 @@
     async function submitAttendance() {
       const guru = document.getElementById('guru-select').value;
       const kelas = document.getElementById('kelas-select').value;
+      const tarikh = document.getElementById('tarikh-kehadiran').value;
       
-      if(!guru || !kelas) return alert('Sila pilih nama guru & kelas!');
+      if(!guru || !kelas || !tarikh) return alert('Sila lengkapkan pilihan guru, kelas & tarikh!');
       
       const stdInClass = students.filter(s => s.kelas === kelas);
-      if(stdInClass.length === 0) return alert('Tiada murid.');
+      if(stdInClass.length === 0) return alert('Tiada murid untuk disimpan.');
 
-      setLoading(true, "Memproses Markah Hari Ini...");
+      setLoading(true, "Menyimpan Markah...");
       const gps = await fetchGPS();
-      const todayStr = getTodayString();
 
       const muridData = stdInClass.map(std => {
         const hadir = document.getElementById(`hadir-${std.domId}`).checked;
@@ -614,52 +718,52 @@
         type: 'attendance', 
         guru, 
         kelas, 
+        tarikh, 
         muridData, 
-        gps, 
-        timestamp: new Date().toISOString(),
-        todayStr: todayStr
+        gps 
       };
 
-      handleSubmission('processAttendance', payload, "Markah Hari Ini Berjaya Dikemaskini!");
+      handleSubmission('processAttendance', payload, `Maklumat Kelas ${kelas} bagi tarikh ${tarikh} Berjaya Disimpan!`);
     }
 
     async function submitReport() {
       const guru = document.getElementById('guru-select').value;
       const kelas = document.getElementById('kelas-select').value;
+      const tarikh = document.getElementById('tarikh-laporan-baru').value;
       const ulasan = document.getElementById('ulasan').value;
       const fileInput = document.getElementById('gambar-bukti').files;
 
-      if(!guru || !kelas) return alert('Sila pilih nama guru & kelas!');
-      if(!ulasan && fileInput.length === 0) return alert('Sila isi ulasan atau muat naik sekurang-kurangnya satu dokumen/gambar!');
+      if(!guru || !kelas || !tarikh) return alert('Sila pilih nama guru, kelas & tarikh di atas!');
+      if(!ulasan && fileInput.length === 0) return alert('Sila isi ulasan atau muat naik fail!');
 
-      setLoading(true, "Memproses & Memuat Naik Fail...");
+      setLoading(true, "Memproses Fail & Upload...");
       const gps = await fetchGPS();
-      
       let processedFiles = await processUploadFiles(fileInput);
 
       const payload = { 
         type: 'report', 
         guru, 
-        kelas, 
+        kelas,
+        tarikh,
         ulasan, 
         files: processedFiles, 
-        gps, 
-        timestamp: new Date().toISOString() 
+        gps
       };
 
-      handleSubmission('processReport', payload, "Pelaporan & Dokumentasi Berjaya Dihantar!");
+      handleSubmission('processReport', payload, "Laporan & Dokumentasi Berjaya Dihantar!");
     }
 
     function handleSubmission(endpoint, payload, successMsg) {
       if (navigator.onLine) {
         apiCall(endpoint, payload).then(res => {
           setLoading(false);
-          alert(`${successMsg}\nMarkah Tambahan Diperolehi: +${res.pointsEarned}`);
+          alert(`${successMsg}\nPoint Tambahan Direkod: +${res.pointsEarned || 0}`);
           if(endpoint === 'processReport') {
             document.getElementById('ulasan').value = '';
             document.getElementById('gambar-bukti').value = '';
+            switchReportTab('sejarah'); // auto view history after report
           }
-          loadInitialData(); // Reload data to reflect new accumulated scores
+          loadInitialData(); 
         }).catch(err => {
           setLoading(false);
           alert('Ralat Pelayan: ' + err);
@@ -668,8 +772,77 @@
         setLoading(false);
         offlineQueue.push({ endpoint, payload });
         localStorage.setItem('offlineQueue', JSON.stringify(offlineQueue));
-        alert("Talian terputus. Disimpan ke Memori Luar Talian untuk disegerakkan kemudian.");
+        alert("Talian terputus. Disimpan untuk segerak automatik.");
       }
+    }
+
+    function fetchReportHistory() {
+      const tarikh = document.getElementById('tarikh-sejarah-laporan').value;
+      if(!tarikh) return;
+      
+      setLoading(true, "Mencari Laporan...");
+      apiCall('getReportHistory', { tarikh }).then(res => {
+        renderReportHistory(res.data, tarikh);
+        setLoading(false);
+      }).catch(err => {
+        alert("Gagal mendapat laporan: " + err);
+        setLoading(false);
+      });
+    }
+
+    function renderReportHistory(data, tarikhStr) {
+      const container = document.getElementById('report-history-container');
+      container.innerHTML = '';
+
+      if(!data || data.length === 0) {
+         container.innerHTML = `<p class="text-sm text-gray-500 text-center py-4">Tiada laporan direkod pada ${tarikhStr}.</p>`;
+         return;
+      }
+
+      data.forEach((laporan, index) => {
+         const printId = `print-laporan-${index}`;
+         
+         // Susun format lampiran untuk paparan lawa
+         let infoHtml = laporan.maklumat.replace(/\n/g, '<br>');
+         // Deteksi URL untuk dijadikan link klik (jika ada raw url)
+         infoHtml = infoHtml.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" class="text-blue-400 underline">Buka Lampiran</a>');
+
+         const card = document.createElement('div');
+         card.className = 'neu-flat p-4 border border-yellow-500/20 mb-4 relative';
+         card.innerHTML = `
+            <div id="${printId}" class="p-2 text-white">
+               <div class="border-b border-gray-700 pb-2 mb-3">
+                 <h3 class="text-lg font-bold text-yellow-500">Laporan Sesi: ${laporan.kelas}</h3>
+                 <p class="text-xs text-gray-400">Guru: ${laporan.guru} | Masa: ${laporan.timestamp}</p>
+               </div>
+               <div class="text-sm text-gray-200 mb-4 leading-relaxed">
+                 ${infoHtml}
+               </div>
+               <div class="text-xs text-gray-500">
+                 GPS: <a href="${laporan.gps}" target="_blank" class="text-blue-400 underline">Paparkan Peta</a>
+               </div>
+            </div>
+            <button onclick="cetakPDF('${printId}', '${laporan.kelas}', '${tarikhStr}')" class="mt-4 w-full bg-gray-800 text-yellow-500 font-bold py-2 rounded-xl border border-yellow-500/30 flex justify-center items-center gap-2 hover:bg-gray-700 transition">
+              <i data-lucide="printer" class="w-4 h-4"></i> Muat Turun PDF
+            </button>
+         `;
+         container.appendChild(card);
+      });
+      lucide.createIcons();
+    }
+
+    function cetakPDF(elementId, kelas, tarikh) {
+      const element = document.getElementById(elementId);
+      // Guna styling sementara supaya di PDF nampak putih dan kemas jika mahu, 
+      // atau kekalkan dark mode. Kita kekalkan dark mode untuk identiti.
+      const opt = {
+        margin:       0.5,
+        filename:     `Laporan_${kelas}_${tarikh}.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true, backgroundColor: '#121212' },
+        jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+      };
+      html2pdf().set(opt).from(element).save();
     }
 
     function setLoading(show, text = "Memuat...") {
@@ -703,7 +876,7 @@
           try {
             await apiCall(item.endpoint, item.payload);
           } catch(e) {
-            offlineQueue.push(item); // Kembalikan ke queue jika gagal
+            offlineQueue.push(item);
             localStorage.setItem('offlineQueue', JSON.stringify(offlineQueue));
           }
         }
