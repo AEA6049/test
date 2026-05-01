@@ -12,7 +12,7 @@
     // KONFIGURASI UTAMA SISTEM (Ubah suai di sini)
     // ==========================================
     const APP_CONFIG = {
-      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbz7p1JmrBx1r34DwdFvmDEvSWaJtn5SyiH2WDTqPiqVw-3QUUXQpslxOlmSiE1ppnBByA/exec"
+      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbwg20T-PmyibY5Y_s7nnLycN7zad8441TDu06Nh8M2ZSV4kIvTfIp4-NhF3lgJZkwqqyw/exec"
     };
   </script>
   <style>
@@ -201,11 +201,10 @@
       </button>
       <h2 class="text-xl font-bold mb-4 text-yellow-500">Status PWA & Maklumat</h2>
       <div class="space-y-4 text-sm text-gray-300">
-        <p>Sistem Bintang telah diubah kepada 6 Ikon Bintang yang boleh diklik.</p>
-        <p>Senarai nama murid akan disusun secara automatik mengikut abjad (A-Z).</p>
-        <p>Murid baharu ditambah terus ke dalam kelasnya dengan tetapan hadir & 3 bintang secara automatik.</p>
-        <p>Terdapat ciri Rumusan Kehadiran di bawah senarai kelas untuk rujukan guru dengan pantas.</p>
-        <p>Markah Pelaporan: 1 fail = 1 Point, Ulasan > 100 perkataan = 5 Point, Ulasan Ringkas = 2 Point. Hanya admin boleh lihat markah keseluruhan.</p>
+        <p>⭐ <b>Prestasi Guru:</b> Maksima 5 markah tambahan sehari akan diberikan jika berjaya menghantar log kehadiran. Guru juga akan menerima tambahan 1 point untuk setiap kemaskini bintang murid (selain 3 bintang).</p>
+        <p>👨‍🎓 <b>Susunan Murid:</b> Senarai nama murid <b>tidak lagi disusun secara abjad</b> mengikut permintaan. Murid baharu yang ditambah akan diletakkan di bahagian paling bawah senarai kelasnya.</p>
+        <p>📚 <b>Prestasi Murid:</b> Jumlah markah/bintang terkumpul dipaparkan terus pada sebelah nama murid bagi menyuntik semangat dan motivasi mereka.</p>
+        <p>📁 <b>Dokumentasi:</b> 1 fail = 1 Point, Ulasan > 100 perkataan = 5 Point, Ulasan Ringkas = 2 Point.</p>
       </div>
     </div>
   </div>
@@ -293,8 +292,8 @@
       }
       
       const filtered = students.filter(s => s.kelas === selectedKelas);
-      // Isih murid mengikut abjad (A-Z)
-      filtered.sort((a, b) => a.nama.localeCompare(b.nama));
+      // NOTA FORENSIK: Arahan .sort() dibuang supaya murid yang baru ditambah
+      // akan dipaparkan secara automatik di bahagian paling bawah senarai.
 
       if(filtered.length === 0) {
         container.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">Tiada nama di dalam kelas ini.</p>';
@@ -655,7 +654,7 @@
       if (navigator.onLine) {
         apiCall(endpoint, payload).then(res => {
           setLoading(false);
-          alert(`${successMsg}\nPoint Guru Diperolehi: +${res.pointsEarned}`);
+          alert(`${successMsg}\nMarkah Tambahan Diperolehi: +${res.pointsEarned}`);
           if(endpoint === 'processReport') {
             document.getElementById('ulasan').value = '';
             document.getElementById('gambar-bukti').value = '';
