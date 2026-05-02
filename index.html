@@ -14,7 +14,7 @@
     // KONFIGURASI UTAMA SISTEM (Ubah suai di sini)
     // ==========================================
     const APP_CONFIG = {
-      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbwq_y_GJBkBJu4ATbytKQTTl3LSoNSssWXjMfA1ZxH_PABsGufBrA1yk8mMCYeearFHVA/exec"
+      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbz2IlrhKNvnoTW3dJqzzBuZDRU5tZ7HdJ97vKbG3EwNYG9P8GEGEpnkBB8bSppBRq7ufA/exec"
     };
   </script>
   <style>
@@ -87,8 +87,6 @@
       background: white;
       color: black;
       padding: 40px;
-      width: 800px;
-      margin: 0 auto;
       font-family: 'Times New Roman', Times, serif;
     }
   </style>
@@ -929,7 +927,6 @@
             
          let imageMatches = [...laporan.maklumat.matchAll(/\[IMAGE\|(.*?)\](https?:\/\/[^\s<]+)/g)].map(m => {
              let url = m[2];
-             // Tambahan baik bagi URL lama untuk sokongan penjanaan PDF
              if(url.indexOf('uc?export=view&id=') > -1) {
                  url = url.replace('uc?export=view&id=', 'thumbnail?sz=w800&id=');
              }
@@ -942,9 +939,10 @@
          if (imageMatches.length > 0 || fileMatches.length > 0) {
              uiAttachmentsHtml = '<div class="mt-4 flex flex-wrap gap-3">';
              imageMatches.forEach((img) => {
+                 // Remove crossorigin="anonymous" so image icons load correctly without strict CORS rejections
                  uiAttachmentsHtml += `
                  <a href="${img.url}" target="_blank" class="relative flex flex-col items-center justify-center bg-gray-800 rounded-xl border border-gray-600 hover:border-yellow-500 transition w-24 h-24 sm:w-32 sm:h-32 overflow-hidden group shadow-md flex-shrink-0">
-                     <img src="${img.url}" alt="${img.name}" title="${img.name}" crossorigin="anonymous" referrerpolicy="no-referrer" class="w-full h-full object-cover group-hover:scale-110 transition duration-300">
+                     <img src="${img.url}" alt="${img.name}" title="${img.name}" class="w-full h-full object-cover group-hover:scale-110 transition duration-300">
                  </a>`;
              });
              fileMatches.forEach((file) => {
@@ -980,9 +978,10 @@
                   <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; align-items: stretch;">
             `;
             imageMatches.forEach(img => {
+               // Removed crossorigin="anonymous" from here too to prevent tainted canvas issue that outputs blank PDFs
                pdfImagesHtml += `
                   <div style="width: ${collW}; margin-bottom: 10px; overflow: hidden; border-radius: 8px; border: 2px solid #eee; height: 200px;">
-                     <img src="${img.url}" crossorigin="anonymous" style="width: 100%; height: 100%; object-fit: cover;">
+                     <img src="${img.url}" style="width: 100%; height: 100%; object-fit: cover;">
                   </div>
                `;
             });
@@ -1061,26 +1060,29 @@
     }
 
     async function cetakPDF(elementId, kelas, tarikh) {
-      const originalElement = document.getElementById(elementId);
+      const element = document.getElementById(elementId);
       setLoading(true, "Menjana PDF Laporan...");
       
-      // Klon elemen di luar skrin bagi membolehkan imej dimuat turun
-      // sebelum html2canvas mula memproses bagi memintas isu blank images
-      const element = originalElement.cloneNode(true);
-      element.id = elementId + '-clone';
+      // Menyimpan konfigurasi asal CSS elemen
+      const originalCssText = element.style.cssText;
+      
+      // Memaparkan dan memosisikan elemen di atas skrin secara sementara di koordinat yang betul 
+      // supaya html2canvas dapat menangkap imej tepat tanpa isu terpotong/blank disebabkan viewport/scroll
       element.style.display = 'block';
+      element.style.width = '800px';
       element.style.position = 'absolute';
-      element.style.left = '-9999px';
-      element.style.top = '0';
-      document.body.appendChild(element);
+      element.style.left = '0px';
+      element.style.top = window.scrollY + 'px';
+      element.style.zIndex = '-1'; 
+      element.style.background = 'white';
       
       // Pastikan semua imej telah selesai "load" sebelum menjana PDF
       const images = element.querySelectorAll('img');
       const imagePromises = Array.from(images).map(img => {
-        if (img.complete) return Promise.resolve();
         return new Promise(resolve => {
+          if (img.complete) return resolve();
           img.onload = resolve;
-          img.onerror = resolve; // Terus jalan jika gagal
+          img.onerror = resolve; 
         });
       });
       await Promise.all(imagePromises);
@@ -1089,7 +1091,7 @@
         margin:       [0.5, 0.5, 0.5, 0.5],
         filename:     `Laporan_${kelas}_${tarikh}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true, logging: false },
+        html2canvas:  { scale: 2, useCORS: true, scrollY: window.scrollY, logging: false },
         jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' },
         pagebreak:    { mode: ['css', 'legacy'] } 
       };
@@ -1099,11 +1101,11 @@
       } catch (e) {
         console.error(e);
         customAlert("Terdapat ralat teknikal semasa menjana PDF.");
+      } finally {
+        // Bersihkan DOM selepas proses selesai dan sembunyikan semula template
+        element.style.cssText = originalCssText;
+        setLoading(false);
       }
-      
-      // Bersihkan DOM selepas proses selesai
-      document.body.removeChild(element);
-      setLoading(false);
     }
 
     function setLoading(show, text = "Memuat...") {
