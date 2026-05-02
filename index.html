@@ -14,7 +14,7 @@
     // KONFIGURASI UTAMA SISTEM (Ubah suai di sini)
     // ==========================================
     const APP_CONFIG = {
-      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbwEZseMdjfl55XpPwIgXkkoubOopVhUKG1t1E5MZudLdwIAjOVi2JeOnT8QEsueqbal7g/exec"
+      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbwXWRI8NdAIB8N0CiU5pmcsgc7tef_LUYgainGRY4OCUYvftMdljgVp0X8DUOi0F4oEig/exec"
     };
   </script>
   <style>
@@ -269,7 +269,7 @@
       <div class="space-y-4 text-sm text-gray-300">
         <p>⭐ <b>Prestasi & Integriti:</b> Sistem markah (guru & murid) HANYA sah untuk hari semasa sahaja. Kemaskini hari lepas hanya menyimpan rekod (0 point).</p>
         <p>🗺️ <b>Pemetaan GPS:</b> Koordinat GPS disimpan secara tersembunyi ke dalam Pangkalan Data untuk simpanan pentadbir.</p>
-        <p>📄 <b>Laporan & Cetakan:</b> Fail gambar akan dipaparkan di dalam PDF. Susunan pintar (kolaj menarik) dan butang muat turun khas bagi dokumen.</p>
+        <p>📄 <b>Laporan & Cetakan:</b> Fail gambar akan dipaparkan di dalam PDF. Susunan pintar (kolaj menarik) dan fail dokumen hanya disenaraikan namanya untuk hasil cetakan PDF yang profesional.</p>
         <p>📎 <b>Muat Naik Berbilang:</b> Anda boleh memilih fail satu persatu tanpa had untuk dihantar dalam satu laporan.</p>
       </div>
     </div>
@@ -903,31 +903,39 @@
       data.forEach((laporan, index) => {
          const printId = `print-laporan-${index}`;
          
+         // Hilangkan tag [IMAGE...] dan [FILE...] serta perkataan 'Lampiran:'
          let textOnly = laporan.maklumat
             .replace(/\[IMAGE\|.*?\](https?:\/\/[^\s<]+)/g, '')
             .replace(/\[FILE\|.*?\](https?:\/\/[^\s<]+)/g, '')
             .replace(/Lampiran:\s*/g, '')
+            .replace(/https?:\/\/[^\s<]+/g, '[Pautan Dibuang]') // Elak pautan panjang terselit
             .trim()
             .replace(/\n/g, '<br>');
             
          let imageMatches = [...laporan.maklumat.matchAll(/\[IMAGE\|(.*?)\](https?:\/\/[^\s<]+)/g)].map(m => ({name: m[1], url: m[2]}));
          let fileMatches = [...laporan.maklumat.matchAll(/\[FILE\|(.*?)\](https?:\/\/[^\s<]+)/g)].map(m => ({name: m[1], url: m[2]}));
 
-         // UI Sistem Paparan: Menarik dan Rapi (Bukan link panjang)
+         // UI Sistem Paparan Web: Menarik dan Rapi (Bukan link panjang)
          let uiAttachmentsHtml = '';
          if (imageMatches.length > 0 || fileMatches.length > 0) {
              uiAttachmentsHtml = '<div class="mt-4 flex flex-wrap gap-3">';
-             imageMatches.forEach((img, idx) => {
+             imageMatches.forEach((img) => {
                  uiAttachmentsHtml += `
-                 <a href="${img.url}" target="_blank" class="relative flex flex-col items-center justify-center p-1 bg-gray-800 rounded-xl border border-gray-600 hover:border-yellow-500 transition w-24 h-24 sm:w-32 sm:h-32 overflow-hidden group shadow-md flex-shrink-0">
-                     <img src="${img.url}" alt="${img.name}" title="${img.name}" referrerpolicy="no-referrer" class="w-full h-full object-cover rounded-lg group-hover:scale-110 transition duration-300">
+                 <a href="${img.url}" target="_blank" class="relative flex flex-col items-center justify-center bg-gray-800 rounded-xl border border-gray-600 hover:border-yellow-500 transition w-24 h-24 sm:w-32 sm:h-32 overflow-hidden group shadow-md flex-shrink-0">
+                     <img src="${img.url}" alt="${img.name}" title="${img.name}" referrerpolicy="no-referrer" class="w-full h-full object-cover group-hover:scale-110 transition duration-300">
                  </a>`;
              });
-             fileMatches.forEach((file, idx) => {
+             fileMatches.forEach((file) => {
+                 let ext = file.name.split('.').pop().toLowerCase();
+                 let iconColor = "text-gray-400";
+                 if(ext === 'pdf') iconColor = "text-red-500";
+                 else if(['doc','docx'].includes(ext)) iconColor = "text-blue-500";
+                 else if(['xls','xlsx'].includes(ext)) iconColor = "text-green-500";
+                 
                  uiAttachmentsHtml += `
                  <a href="${file.url}" target="_blank" title="${file.name}" class="flex flex-col items-center justify-center p-3 bg-gray-800 rounded-xl border border-gray-600 hover:bg-yellow-500/20 hover:border-yellow-500 transition w-24 h-24 sm:w-32 sm:h-32 shadow-md flex-shrink-0">
-                     <i data-lucide="file-text" class="w-8 h-8 sm:w-10 sm:h-10 text-red-400 mb-2"></i>
-                     <span class="text-[10px] sm:text-xs text-gray-300 w-full text-center truncate">${file.name}</span>
+                     <i data-lucide="file-text" class="w-8 h-8 sm:w-10 sm:h-10 ${iconColor} mb-2"></i>
+                     <span class="text-[10px] sm:text-xs text-gray-300 w-full text-center truncate px-1">${file.name}</span>
                  </a>`;
              });
              uiAttachmentsHtml += '</div>';
@@ -935,7 +943,7 @@
 
          let uiTextHtml = `<div class="text-sm text-gray-200 mb-4 leading-relaxed">${textOnly}</div>`;
 
-         // PDF Generator Logic: Susunan Kolaj Pintar dan Butiran Dokumen
+         // PDF Generator Logic: Susunan Kolaj Pintar dan Butiran Dokumen (Tanpa Hyperlink)
          let pdfImagesHtml = '';
          if (imageMatches.length > 0) {
             let pageBreak = imageMatches.length > 4 ? '<div class="html2pdf__page-break"></div>' : '';
@@ -962,17 +970,17 @@
             pdfFilesHtml = `
             <div style="margin-top: 20px;">
                <h3 style="font-size: 16px; font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 15px;">Lampiran Dokumen Sokongan</h3>
-               <div style="display: flex; flex-wrap: wrap; gap: 15px; justify-content: center;">
+               <ul style="list-style-type: none; padding: 0; margin: 0;">
             `;
-            fileMatches.forEach((file, i) => {
+            fileMatches.forEach((file) => {
+                // Tiada tag <a>, terus papar nama fail
                 pdfFilesHtml += `
-                <div style="width: 45%; padding: 15px; border: 2px dashed #999; border-radius: 8px; background-color: #f9f9f9; text-align: center;">
-                   <div style="font-size: 24px; color: #d93025; margin-bottom: 10px;">📄</div>
-                   <h4 style="font-size: 14px; font-weight: bold; margin: 0 0 10px 0; color: #333; word-break: break-all;">${file.name}</h4>
-                   <a href="${file.url}" target="_blank" style="display: inline-block; padding: 6px 12px; background: #FFCC00; color: #000; text-decoration: none; font-weight: bold; border-radius: 4px; font-size: 12px;">Muat Turun Fail</a>
-                </div>`;
+                <li style="margin-bottom: 10px; font-size: 14px; color: #333; display: flex; align-items: center; background-color: #f9f9f9; padding: 12px; border-radius: 6px; border: 1px solid #ddd;">
+                   <span style="font-size: 20px; margin-right: 12px;">📄</span>
+                   <span style="font-weight: bold; word-break: break-all;">${file.name}</span>
+                </li>`;
             });
-            pdfFilesHtml += `</div></div>`;
+            pdfFilesHtml += `</ul></div>`;
          }
 
          const card = document.createElement('div');
