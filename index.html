@@ -14,7 +14,7 @@
     // KONFIGURASI UTAMA SISTEM (Ubah suai di sini)
     // ==========================================
     const APP_CONFIG = {
-      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbyEekx4g6JIzc78MgFOMRPgLxz2IFwrdfMyd_MtqKykLIrecs6b9p1WkTulBzTibIVZmA/exec"
+      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbzZkUpWJjibrLZPO3eGnJ4JZWvVVbgYgvU-iHel0hU6s00K5sJBokJ3gvFn6jY9cDN1_A/exec"
     };
   </script>
   <style>
@@ -258,7 +258,7 @@
       <div class="space-y-4 text-sm text-gray-300">
         <p>⭐ <b>Prestasi & Integriti:</b> Sistem markah (guru & murid) HANYA sah untuk hari semasa sahaja. Kemaskini hari lepas hanya menyimpan rekod (0 point).</p>
         <p>🗺️ <b>Pemetaan GPS:</b> Koordinat GPS disimpan secara tersembunyi ke dalam Pangkalan Data untuk simpanan pentadbir.</p>
-        <p>📄 <b>Laporan & Cetakan:</b> Fail gambar akan dipaparkan di dalam PDF manakala dokumen akan diletakkan sebagai pautan. Penjanaan direka khusus untuk format Satu Muka Surat (A4).</p>
+        <p>📄 <b>Laporan & Cetakan:</b> Fail gambar akan dipaparkan di dalam PDF. Susunan pintar (<4 pada muka surat pertama, >4 pada helaian berasingan) dan helaian khas bagi setiap pautan dokumen.</p>
         <p>📎 <b>Muat Naik Berbilang:</b> Anda boleh memilih fail satu persatu tanpa had untuk dihantar dalam satu laporan.</p>
       </div>
     </div>
@@ -272,7 +272,7 @@
     let teachers = [];
     let offlineQueue = JSON.parse(localStorage.getItem('offlineQueue') || '[]');
     let currentHistoryData = null; 
-    let reportFileQueue = []; // Queue untuk fail yang dipilih satu persatu
+    let reportFileQueue = []; 
 
     async function apiCall(action, payload = null) {
       if (typeof google !== 'undefined' && google.script) {
@@ -850,29 +850,65 @@
       data.forEach((laporan, index) => {
          const printId = `print-laporan-${index}`;
          
-         let infoHtml = laporan.maklumat.replace(/\n/g, '<br>');
-         
-         // Penukaran khas tag URL dari Google App Script
-         // Image Tag
-         infoHtml = infoHtml.replace(/\[IMAGE\](https?:\/\/[^\s<]+)/g, '<div class="mt-4 mb-2 flex justify-center"><img src="$1" crossorigin="anonymous" class="max-w-full h-auto rounded border border-gray-400 shadow-sm" style="max-height:350px;"></div>');
-         // File Tag
-         infoHtml = infoHtml.replace(/\[FILE\](https?:\/\/[^\s<]+)/g, '<div class="mt-2"><a href="$1" target="_blank" class="text-blue-500 font-bold underline flex items-center gap-1"><i data-lucide="paperclip" class="w-4 h-4"></i> Pautan Fail / Dokumen</a></div>');
-         // Fallback
-         infoHtml = infoHtml.replace(/(?<!\[IMAGE\]|\[FILE\])(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" class="text-blue-500 font-bold underline">Buka Lampiran</a>');
+         // Ekstrak Teks, Imej dan Fail secara berasingan menggunakan Regex
+         let textOnly = laporan.maklumat
+            .replace(/\[IMAGE\](https?:\/\/[^\s<]+)/g, '')
+            .replace(/\[FILE\](https?:\/\/[^\s<]+)/g, '')
+            .replace(/Lampiran:\s*/g, '')
+            .trim()
+            .replace(/\n/g, '<br>');
+            
+         let imageMatches = [...laporan.maklumat.matchAll(/\[IMAGE\](https?:\/\/[^\s<]+)/g)].map(m => m[1]);
+         let fileMatches = [...laporan.maklumat.matchAll(/\[FILE\](https?:\/\/[^\s<]+)/g)].map(m => m[1]);
+
+         // HTML untuk UI Sistem (Paparan Skrin Utama)
+         let uiImagesHtml = imageMatches.map(url => `<div class="mt-4 mb-2 flex justify-center"><img src="${url}" crossorigin="anonymous" class="max-w-full h-auto rounded border border-gray-400 shadow-sm" style="max-height:350px;"></div>`).join('');
+         let uiFilesHtml = fileMatches.map(url => `<div class="mt-2"><a href="${url}" target="_blank" class="text-blue-500 font-bold underline flex items-center gap-1"><i data-lucide="paperclip" class="w-4 h-4"></i> Pautan Fail / Dokumen</a></div>`).join('');
+         let uiTextHtml = `<div class="text-sm text-gray-200 mb-4 leading-relaxed">${textOnly}</div>`;
+
+         // Logik Pembinaan Muka Surat Khas untuk Cetakan Laporan PDF
+         let pdfImagesHtml = '';
+         let pdfPageBreakImages = '';
+         if (imageMatches.length > 0) {
+            if (imageMatches.length <= 4) {
+               // Jika gambar 4 atau ke bawah, letak di halaman laporan pertama (Satu Muka Surat)
+               pdfImagesHtml = `<div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 20px;">` + 
+                  imageMatches.map(url => `<div style="width: 47%; text-align: center; margin-bottom: 10px;"><img src="${url}" crossorigin="anonymous" style="max-width: 100%; max-height: 200px; object-fit: contain; border: 1px solid #ccc; border-radius: 4px; padding: 2px;"></div>`).join('') + `</div>`;
+            } else {
+               // Jika gambar lebih dari 4, asingkan muka surat (Page Break)
+               pdfPageBreakImages = `<div class="html2pdf__page-break"></div>`;
+               pdfImagesHtml = `<h3 style="font-size: 16px; font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid #ccc; padding-bottom: 5px;">Lampiran Gambar Tambahan</h3>`;
+               pdfImagesHtml += `<div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 10px;">` + 
+                  imageMatches.map(url => `<div style="width: 47%; text-align: center; margin-bottom: 10px;"><img src="${url}" crossorigin="anonymous" style="max-width: 100%; max-height: 250px; object-fit: contain; border: 1px solid #ccc; border-radius: 4px; padding: 2px;"></div>`).join('') + `</div>`;
+            }
+         }
+
+         let pdfFilesHtml = '';
+         if (fileMatches.length > 0) {
+            // Setiap fail dokumen akan diletakkan di dalam helaian muka surat yang baru
+            fileMatches.forEach((url, i) => {
+                pdfFilesHtml += `<div class="html2pdf__page-break"></div>
+                                 <div style="padding: 40px; text-align: center; border: 2px dashed #000; margin-top: 50px;">
+                                    <h3 style="font-size: 18px; font-weight: bold; margin-bottom: 20px;">Lampiran Dokumen Sokongan ${i + 1}</h3>
+                                    <p style="font-size: 14px; margin-bottom: 20px;">Sila rujuk pautan di bawah untuk melihat atau memuat turun fail dokumen tersebut:</p>
+                                    <a href="${url}" target="_blank" style="color: #0000EE; text-decoration: underline; font-size: 16px; word-break: break-all;">${url}</a>
+                                 </div>`;
+            });
+         }
 
          const card = document.createElement('div');
          card.className = 'neu-flat p-4 border border-yellow-500/20 mb-4 relative';
          card.innerHTML = `
-            <!-- Paparan Skrin -->
+            <!-- Paparan Skrin UI Sistem -->
             <div class="border-b border-gray-700 pb-2 mb-3">
               <h3 class="text-lg font-bold text-yellow-500">Laporan Sesi: ${laporan.kelas}</h3>
               <p class="text-xs text-gray-400">Guru: ${laporan.guru} | Masa: ${laporan.timestamp}</p>
             </div>
-            <div class="text-sm text-gray-200 mb-4 leading-relaxed">
-              ${infoHtml}
-            </div>
+            ${uiTextHtml}
+            ${uiImagesHtml}
+            ${uiFilesHtml}
             
-            <!-- Wrapper Tersembunyi Khas Untuk Template Laporan PDF (Satu Muka Surat A4) -->
+            <!-- Wrapper Tersembunyi Khas Untuk Template Cetakan Laporan PDF Pintar -->
             <div id="${printId}" class="print-template">
               <div style="text-align: center; border-bottom: 2px solid black; padding-bottom: 15px; margin-bottom: 20px;">
                 <h1 style="font-size: 20px; font-weight: bold; margin: 0;">YAYASAN SULTAN AZLAN SHAH</h1>
@@ -887,26 +923,34 @@
               </table>
 
               <div style="margin-bottom: 20px;">
-                <h3 style="font-size: 16px; font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 10px;">Butiran Sesi & Lampiran</h3>
+                <h3 style="font-size: 16px; font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 10px;">Butiran Sesi</h3>
                 <div style="font-size: 14px; line-height: 1.6; color: #000;">
-                  ${infoHtml}
+                  ${textOnly}
                 </div>
               </div>
               
+              ${imageMatches.length <= 4 ? pdfImagesHtml : ''}
+              
+              <!-- Ruangan Tanda Tangan (Berada di helaian yang sama dengan butiran laporan utama) -->
               <div style="margin-top: 50px; padding-top: 30px; border-top: 1px solid #ccc; display: flex; justify-content: space-between; font-size: 14px; text-align: center;">
                 <div style="width: 45%;">
                   <p style="margin-bottom: 60px;">Disediakan Oleh,</p>
-                  <p style="font-weight: bold; border-top: 1px dashed black; display: inline-block; padding-top: 5px;">(${laporan.guru})</p>
+                  <p style="font-weight: bold; border-top: 1px dashed black; display: inline-block; padding-top: 5px; width: 80%;">(${laporan.guru})</p>
                 </div>
                 <div style="width: 45%;">
                   <p style="margin-bottom: 60px;">Disahkan Oleh,</p>
-                  <p style="font-weight: bold; border-top: 1px dashed black; display: inline-block; padding-top: 5px;">Pihak Pengurusan</p>
+                  <p style="font-weight: bold; border-top: 1px dashed black; display: inline-block; padding-top: 5px; width: 80%;">Pihak Pengurusan</p>
                 </div>
               </div>
+
+              ${pdfPageBreakImages}
+              ${imageMatches.length > 4 ? pdfImagesHtml : ''}
+              
+              ${pdfFilesHtml}
             </div>
 
             <button onclick="cetakPDF('${printId}', '${laporan.kelas}', '${tarikhStr}')" class="mt-4 w-full bg-gray-800 text-yellow-500 font-bold py-3 rounded-xl border border-yellow-500/30 flex justify-center items-center gap-2 hover:bg-gray-700 transition">
-              <i data-lucide="printer" class="w-5 h-5"></i> Jana PDF Laporan (Satu Muka Surat)
+              <i data-lucide="printer" class="w-5 h-5"></i> Jana PDF Laporan Secara Dinamik
             </button>
          `;
          container.appendChild(card);
@@ -927,7 +971,8 @@
         filename:     `Laporan_${kelas}_${tarikh}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
         html2canvas:  { scale: 2, useCORS: true, logging: false },
-        jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+        jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' },
+        pagebreak:    { mode: ['css', 'legacy'] } // Pastikan enjin memecah helaian secara tepat
       };
       
       try {
