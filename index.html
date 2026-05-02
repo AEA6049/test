@@ -14,7 +14,7 @@
     // KONFIGURASI UTAMA SISTEM (Ubah suai di sini)
     // ==========================================
     const APP_CONFIG = {
-      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbwXWRI8NdAIB8N0CiU5pmcsgc7tef_LUYgainGRY4OCUYvftMdljgVp0X8DUOi0F4oEig/exec"
+      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbwq_y_GJBkBJu4ATbytKQTTl3LSoNSssWXjMfA1ZxH_PABsGufBrA1yk8mMCYeearFHVA/exec"
     };
   </script>
   <style>
@@ -87,8 +87,7 @@
       background: white;
       color: black;
       padding: 40px;
-      width: 100%;
-      max-width: 800px;
+      width: 800px;
       margin: 0 auto;
       font-family: 'Times New Roman', Times, serif;
     }
@@ -726,10 +725,27 @@
       const container = document.getElementById('file-queue-container');
       container.innerHTML = '';
       reportFileQueue.forEach((file, index) => {
+        let iconName = "file-text";
+        let iconColor = "text-gray-400";
+        
+        if (file.type.startsWith('image/')) {
+          iconName = "image";
+          iconColor = "text-yellow-500";
+        } else if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
+          iconName = "file-text";
+          iconColor = "text-red-500";
+        } else if (file.name.match(/\.(doc|docx)$/i)) {
+          iconName = "file-text";
+          iconColor = "text-blue-500";
+        } else if (file.name.match(/\.(xls|xlsx)$/i)) {
+          iconName = "table";
+          iconColor = "text-green-500";
+        }
+
         container.innerHTML += `
           <div class="flex justify-between items-center p-3 bg-gray-900 rounded-xl border border-gray-700">
             <div class="flex items-center gap-2 truncate w-5/6">
-              <i data-lucide="file-text" class="w-4 h-4 text-gray-400 flex-shrink-0"></i>
+              <i data-lucide="${iconName}" class="w-5 h-5 ${iconColor} flex-shrink-0"></i>
               <span class="text-sm text-gray-300 truncate">${file.name}</span>
             </div>
             <button type="button" onclick="removeQueuedFile(${index})" class="text-red-400 hover:text-red-300 p-1 flex-shrink-0">
@@ -903,38 +919,47 @@
       data.forEach((laporan, index) => {
          const printId = `print-laporan-${index}`;
          
-         // Hilangkan tag [IMAGE...] dan [FILE...] serta perkataan 'Lampiran:'
          let textOnly = laporan.maklumat
             .replace(/\[IMAGE\|.*?\](https?:\/\/[^\s<]+)/g, '')
             .replace(/\[FILE\|.*?\](https?:\/\/[^\s<]+)/g, '')
             .replace(/Lampiran:\s*/g, '')
-            .replace(/https?:\/\/[^\s<]+/g, '[Pautan Dibuang]') // Elak pautan panjang terselit
+            .replace(/https?:\/\/[^\s<]+/g, '[Pautan Dibuang]') 
             .trim()
             .replace(/\n/g, '<br>');
             
-         let imageMatches = [...laporan.maklumat.matchAll(/\[IMAGE\|(.*?)\](https?:\/\/[^\s<]+)/g)].map(m => ({name: m[1], url: m[2]}));
+         let imageMatches = [...laporan.maklumat.matchAll(/\[IMAGE\|(.*?)\](https?:\/\/[^\s<]+)/g)].map(m => {
+             let url = m[2];
+             // Tambahan baik bagi URL lama untuk sokongan penjanaan PDF
+             if(url.indexOf('uc?export=view&id=') > -1) {
+                 url = url.replace('uc?export=view&id=', 'thumbnail?sz=w800&id=');
+             }
+             return {name: m[1], url: url};
+         });
+         
          let fileMatches = [...laporan.maklumat.matchAll(/\[FILE\|(.*?)\](https?:\/\/[^\s<]+)/g)].map(m => ({name: m[1], url: m[2]}));
 
-         // UI Sistem Paparan Web: Menarik dan Rapi (Bukan link panjang)
          let uiAttachmentsHtml = '';
          if (imageMatches.length > 0 || fileMatches.length > 0) {
              uiAttachmentsHtml = '<div class="mt-4 flex flex-wrap gap-3">';
              imageMatches.forEach((img) => {
                  uiAttachmentsHtml += `
                  <a href="${img.url}" target="_blank" class="relative flex flex-col items-center justify-center bg-gray-800 rounded-xl border border-gray-600 hover:border-yellow-500 transition w-24 h-24 sm:w-32 sm:h-32 overflow-hidden group shadow-md flex-shrink-0">
-                     <img src="${img.url}" alt="${img.name}" title="${img.name}" referrerpolicy="no-referrer" class="w-full h-full object-cover group-hover:scale-110 transition duration-300">
+                     <img src="${img.url}" alt="${img.name}" title="${img.name}" crossorigin="anonymous" referrerpolicy="no-referrer" class="w-full h-full object-cover group-hover:scale-110 transition duration-300">
                  </a>`;
              });
              fileMatches.forEach((file) => {
                  let ext = file.name.split('.').pop().toLowerCase();
+                 let iconName = "file-text";
                  let iconColor = "text-gray-400";
-                 if(ext === 'pdf') iconColor = "text-red-500";
-                 else if(['doc','docx'].includes(ext)) iconColor = "text-blue-500";
-                 else if(['xls','xlsx'].includes(ext)) iconColor = "text-green-500";
+                 
+                 if(ext === 'pdf') { iconName = "file-text"; iconColor = "text-red-500"; }
+                 else if(['doc','docx'].includes(ext)) { iconName = "file-text"; iconColor = "text-blue-500"; }
+                 else if(['xls','xlsx'].includes(ext)) { iconName = "table"; iconColor = "text-green-500"; }
+                 else if(['png','jpg','jpeg','gif'].includes(ext)) { iconName = "image"; iconColor = "text-yellow-500"; }
                  
                  uiAttachmentsHtml += `
                  <a href="${file.url}" target="_blank" title="${file.name}" class="flex flex-col items-center justify-center p-3 bg-gray-800 rounded-xl border border-gray-600 hover:bg-yellow-500/20 hover:border-yellow-500 transition w-24 h-24 sm:w-32 sm:h-32 shadow-md flex-shrink-0">
-                     <i data-lucide="file-text" class="w-8 h-8 sm:w-10 sm:h-10 ${iconColor} mb-2"></i>
+                     <i data-lucide="${iconName}" class="w-8 h-8 sm:w-10 sm:h-10 ${iconColor} mb-2"></i>
                      <span class="text-[10px] sm:text-xs text-gray-300 w-full text-center truncate px-1">${file.name}</span>
                  </a>`;
              });
@@ -943,7 +968,6 @@
 
          let uiTextHtml = `<div class="text-sm text-gray-200 mb-4 leading-relaxed">${textOnly}</div>`;
 
-         // PDF Generator Logic: Susunan Kolaj Pintar dan Butiran Dokumen (Tanpa Hyperlink)
          let pdfImagesHtml = '';
          if (imageMatches.length > 0) {
             let pageBreak = imageMatches.length > 4 ? '<div class="html2pdf__page-break"></div>' : '';
@@ -973,7 +997,6 @@
                <ul style="list-style-type: none; padding: 0; margin: 0;">
             `;
             fileMatches.forEach((file) => {
-                // Tiada tag <a>, terus papar nama fail
                 pdfFilesHtml += `
                 <li style="margin-bottom: 10px; font-size: 14px; color: #333; display: flex; align-items: center; background-color: #f9f9f9; padding: 12px; border-radius: 6px; border: 1px solid #ddd;">
                    <span style="font-size: 20px; margin-right: 12px;">📄</span>
@@ -1038,13 +1061,30 @@
     }
 
     async function cetakPDF(elementId, kelas, tarikh) {
-      const element = document.getElementById(elementId);
-      
+      const originalElement = document.getElementById(elementId);
       setLoading(true, "Menjana PDF Laporan...");
       
-      // Tunjukkan sebentar untuk enjin html2pdf membaca elemen
+      // Klon elemen di luar skrin bagi membolehkan imej dimuat turun
+      // sebelum html2canvas mula memproses bagi memintas isu blank images
+      const element = originalElement.cloneNode(true);
+      element.id = elementId + '-clone';
       element.style.display = 'block';
+      element.style.position = 'absolute';
+      element.style.left = '-9999px';
+      element.style.top = '0';
+      document.body.appendChild(element);
       
+      // Pastikan semua imej telah selesai "load" sebelum menjana PDF
+      const images = element.querySelectorAll('img');
+      const imagePromises = Array.from(images).map(img => {
+        if (img.complete) return Promise.resolve();
+        return new Promise(resolve => {
+          img.onload = resolve;
+          img.onerror = resolve; // Terus jalan jika gagal
+        });
+      });
+      await Promise.all(imagePromises);
+
       const opt = {
         margin:       [0.5, 0.5, 0.5, 0.5],
         filename:     `Laporan_${kelas}_${tarikh}.pdf`,
@@ -1061,8 +1101,8 @@
         customAlert("Terdapat ralat teknikal semasa menjana PDF.");
       }
       
-      // Sembunyikan kembali selepas selesai
-      element.style.display = 'none';
+      // Bersihkan DOM selepas proses selesai
+      document.body.removeChild(element);
       setLoading(false);
     }
 
