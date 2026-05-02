@@ -81,6 +81,17 @@
       filter: invert(1);
       cursor: pointer;
     }
+    /* Gaya untuk Laporan PDF */
+    .print-template {
+      display: none;
+      background: white;
+      color: black;
+      padding: 40px;
+      width: 100%;
+      max-width: 800px;
+      margin: 0 auto;
+      font-family: 'Times New Roman', Times, serif;
+    }
   </style>
 </head>
 <body class="p-4">
@@ -170,7 +181,7 @@
       <!-- Laporan Baru -->
       <div id="pelaporan-baru-section">
         <h2 class="text-lg font-bold mb-2 text-yellow-500">Laporan Sesi & Dokumentasi</h2>
-        <p class="text-xs text-gray-400 mb-4">Muat naik fail tanpa had. (1 Fail = 1 Point. Ulasan panjang = 5 Point).</p>
+        <p class="text-xs text-gray-400 mb-4">Muat naik fail tanpa had. Boleh pilih fail satu persatu berulang kali.</p>
         
         <label class="block text-sm font-bold mb-2 text-yellow-500">Tarikh Laporan</label>
         <input type="date" id="tarikh-laporan-baru" class="w-full p-3 neu-pressed outline-none text-gray-200 font-bold mb-2" onchange="checkLaporanDate()">
@@ -180,7 +191,14 @@
         <textarea id="ulasan" rows="4" class="w-full p-3 neu-pressed outline-none mb-4" placeholder="Ulasan ringkas atau padat..."></textarea>
         
         <label class="block text-sm font-bold mb-2 text-yellow-500">Lampiran Bukti (Gambar / Dokumen)</label>
-        <input type="file" id="gambar-bukti" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" class="w-full p-2 neu-pressed text-sm mb-6 file:bg-yellow-500 file:text-black file:border-0 file:rounded-xl file:px-4 file:py-2 file:mr-4 file:font-bold">
+        <div class="flex flex-col gap-2 mb-6">
+          <input type="file" id="gambar-bukti" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" class="hidden" onchange="handleFileSelect(this)">
+          <button type="button" onclick="document.getElementById('gambar-bukti').click()" class="neu-btn px-4 py-3 flex items-center justify-center gap-2 text-sm font-bold w-full bg-gray-800 text-yellow-500 hover:bg-gray-700">
+            <i data-lucide="plus-circle" class="w-5 h-5"></i> Pilih Fail Lampiran
+          </button>
+          <!-- Tempat senarai fail dipaparkan -->
+          <div id="file-queue-container" class="space-y-2 mt-2 empty:hidden"></div>
+        </div>
 
         <button onclick="submitReport()" class="w-full py-4 text-lg font-bold rounded-2xl bg-yellow-500 text-black shadow-lg flex justify-center items-center gap-2 hover:bg-yellow-400">
           <i data-lucide="send" class="w-5 h-5"></i> Hantar Laporan Sesi
@@ -239,9 +257,9 @@
       <h2 class="text-xl font-bold mb-4 text-yellow-500">Status PWA & Maklumat</h2>
       <div class="space-y-4 text-sm text-gray-300">
         <p>⭐ <b>Prestasi & Integriti:</b> Sistem markah (guru & murid) HANYA sah untuk hari semasa sahaja. Kemaskini hari lepas hanya menyimpan rekod (0 point).</p>
-        <p>🗺️ <b>Pemetaan GPS:</b> Koordinat GPS kini dihubungkan terus ke Google Maps untuk semakan pantas.</p>
-        <p>📅 <b>Sejarah Kehadiran:</b> Guru kini boleh mengemaskini markah pada tarikh lepas melalui kalendar terbina.</p>
-        <p>📄 <b>Eksport Laporan:</b> Menyokong penjanaan PDF untuk laporan lepas yang boleh dicetak terus.</p>
+        <p>🗺️ <b>Pemetaan GPS:</b> Koordinat GPS disimpan secara tersembunyi ke dalam Pangkalan Data untuk simpanan pentadbir.</p>
+        <p>📄 <b>Laporan & Cetakan:</b> Fail gambar akan dipaparkan di dalam PDF manakala dokumen akan diletakkan sebagai pautan. Penjanaan direka khusus untuk format Satu Muka Surat (A4).</p>
+        <p>📎 <b>Muat Naik Berbilang:</b> Anda boleh memilih fail satu persatu tanpa had untuk dihantar dalam satu laporan.</p>
       </div>
     </div>
   </div>
@@ -253,7 +271,8 @@
     let classes = [];
     let teachers = [];
     let offlineQueue = JSON.parse(localStorage.getItem('offlineQueue') || '[]');
-    let currentHistoryData = null; // Menyimpan data kehadiran masa lalu jika dicari
+    let currentHistoryData = null; 
+    let reportFileQueue = []; // Queue untuk fail yang dipilih satu persatu
 
     async function apiCall(action, payload = null) {
       if (typeof google !== 'undefined' && google.script) {
@@ -294,7 +313,6 @@
       document.getElementById('tarikh-laporan-baru').value = getTodayString();
       document.getElementById('tarikh-sejarah-laporan').value = getTodayString();
 
-      // Pastikan amaran disembunyikan pada permulaan
       checkKehadiranDate(true);
       checkLaporanDate(true);
 
@@ -364,7 +382,7 @@
 
       setLoading(true, "Mencari Sejarah...");
       apiCall('getAttendanceHistory', { tarikh, kelas }).then(res => {
-         currentHistoryData = res.data; // Boleh null jika tiada rekod
+         currentHistoryData = res.data; 
          renderStudents();
          setLoading(false);
       }).catch(err => {
@@ -393,7 +411,6 @@
         container.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">Tiada nama di dalam kelas ini.</p>';
       }
       
-      // Map sejarah data jika wujud
       let historyMap = {};
       if (currentHistoryData) {
          currentHistoryData.forEach(item => {
@@ -406,17 +423,14 @@
         let isChecked = true;
 
         if (tarikhPilihan !== todayStr) {
-            // Mod Sejarah
             if (historyMap[std.nama]) {
                 currentStar = historyMap[std.nama].bintang;
                 isChecked = historyMap[std.nama].hadir;
             } else {
-                // Jika murid wujud sekarang tp tiada dlm sejarah, default kpd tiada rekod (0 bintang/tak hadir)
                 currentStar = 0;
                 isChecked = false;
             }
         } else {
-            // Mod Hari Ini
             if (std.tarikhTerakhir === todayStr) {
                 currentStar = std.bintangTerakhir;
                 isChecked = currentStar > 0;
@@ -574,7 +588,7 @@
       } else {
         btnSejarah.className = "text-yellow-500 font-bold px-2 py-1 border-b-2 border-yellow-500 transition";
         btnBaru.className = "text-gray-400 font-bold px-2 py-1 border-b-2 border-transparent transition";
-        fetchReportHistory(); // Auto fetch current date on tab open
+        fetchReportHistory(); 
       }
     }
 
@@ -615,7 +629,7 @@
       
       if(oldNama) {
         apiCall('updateMurid', { oldNama, nama, kelas }).then(() => {
-          loadInitialData(); // Force full reload for sync
+          loadInitialData(); 
         }).catch(err => { alert('Gagal: ' + err); setLoading(false); });
       } else {
         apiCall('addMurid', { nama, kelas }).then(() => {
@@ -644,6 +658,40 @@
           () => resolve("Lokasi Ditolak")
         );
       });
+    }
+
+    function handleFileSelect(input) {
+      if (input.files && input.files.length > 0) {
+        for (let i = 0; i < input.files.length; i++) {
+          reportFileQueue.push(input.files[i]);
+        }
+        input.value = ""; // Reset input file
+        renderFileQueue();
+      }
+    }
+
+    function renderFileQueue() {
+      const container = document.getElementById('file-queue-container');
+      container.innerHTML = '';
+      reportFileQueue.forEach((file, index) => {
+        container.innerHTML += `
+          <div class="flex justify-between items-center p-3 bg-gray-900 rounded-xl border border-gray-700">
+            <div class="flex items-center gap-2 truncate w-5/6">
+              <i data-lucide="file-text" class="w-4 h-4 text-gray-400 flex-shrink-0"></i>
+              <span class="text-sm text-gray-300 truncate">${file.name}</span>
+            </div>
+            <button type="button" onclick="removeQueuedFile(${index})" class="text-red-400 hover:text-red-300 p-1 flex-shrink-0">
+              <i data-lucide="trash-2" class="w-5 h-5"></i>
+            </button>
+          </div>
+        `;
+      });
+      lucide.createIcons();
+    }
+
+    function removeQueuedFile(index) {
+      reportFileQueue.splice(index, 1);
+      renderFileQueue();
     }
 
     function compressImage(file) {
@@ -731,14 +779,13 @@
       const kelas = document.getElementById('kelas-select').value;
       const tarikh = document.getElementById('tarikh-laporan-baru').value;
       const ulasan = document.getElementById('ulasan').value;
-      const fileInput = document.getElementById('gambar-bukti').files;
-
+      
       if(!guru || !kelas || !tarikh) return alert('Sila pilih nama guru, kelas & tarikh di atas!');
-      if(!ulasan && fileInput.length === 0) return alert('Sila isi ulasan atau muat naik fail!');
+      if(!ulasan && reportFileQueue.length === 0) return alert('Sila isi ulasan atau muat naik fail!');
 
       setLoading(true, "Memproses Fail & Upload...");
       const gps = await fetchGPS();
-      let processedFiles = await processUploadFiles(fileInput);
+      let processedFiles = await processUploadFiles(reportFileQueue);
 
       const payload = { 
         type: 'report', 
@@ -760,8 +807,9 @@
           alert(`${successMsg}\nPoint Tambahan Direkod: +${res.pointsEarned || 0}`);
           if(endpoint === 'processReport') {
             document.getElementById('ulasan').value = '';
-            document.getElementById('gambar-bukti').value = '';
-            switchReportTab('sejarah'); // auto view history after report
+            reportFileQueue = [];
+            renderFileQueue();
+            switchReportTab('sejarah'); 
           }
           loadInitialData(); 
         }).catch(err => {
@@ -802,28 +850,63 @@
       data.forEach((laporan, index) => {
          const printId = `print-laporan-${index}`;
          
-         // Susun format lampiran untuk paparan lawa
          let infoHtml = laporan.maklumat.replace(/\n/g, '<br>');
-         // Deteksi URL untuk dijadikan link klik (jika ada raw url)
-         infoHtml = infoHtml.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" class="text-blue-400 underline">Buka Lampiran</a>');
+         
+         // Penukaran khas tag URL dari Google App Script
+         // Image Tag
+         infoHtml = infoHtml.replace(/\[IMAGE\](https?:\/\/[^\s<]+)/g, '<div class="mt-4 mb-2 flex justify-center"><img src="$1" crossorigin="anonymous" class="max-w-full h-auto rounded border border-gray-400 shadow-sm" style="max-height:350px;"></div>');
+         // File Tag
+         infoHtml = infoHtml.replace(/\[FILE\](https?:\/\/[^\s<]+)/g, '<div class="mt-2"><a href="$1" target="_blank" class="text-blue-500 font-bold underline flex items-center gap-1"><i data-lucide="paperclip" class="w-4 h-4"></i> Pautan Fail / Dokumen</a></div>');
+         // Fallback
+         infoHtml = infoHtml.replace(/(?<!\[IMAGE\]|\[FILE\])(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" class="text-blue-500 font-bold underline">Buka Lampiran</a>');
 
          const card = document.createElement('div');
          card.className = 'neu-flat p-4 border border-yellow-500/20 mb-4 relative';
          card.innerHTML = `
-            <div id="${printId}" class="p-2 text-white">
-               <div class="border-b border-gray-700 pb-2 mb-3">
-                 <h3 class="text-lg font-bold text-yellow-500">Laporan Sesi: ${laporan.kelas}</h3>
-                 <p class="text-xs text-gray-400">Guru: ${laporan.guru} | Masa: ${laporan.timestamp}</p>
-               </div>
-               <div class="text-sm text-gray-200 mb-4 leading-relaxed">
-                 ${infoHtml}
-               </div>
-               <div class="text-xs text-gray-500">
-                 GPS: <a href="${laporan.gps}" target="_blank" class="text-blue-400 underline">Paparkan Peta</a>
-               </div>
+            <!-- Paparan Skrin -->
+            <div class="border-b border-gray-700 pb-2 mb-3">
+              <h3 class="text-lg font-bold text-yellow-500">Laporan Sesi: ${laporan.kelas}</h3>
+              <p class="text-xs text-gray-400">Guru: ${laporan.guru} | Masa: ${laporan.timestamp}</p>
             </div>
-            <button onclick="cetakPDF('${printId}', '${laporan.kelas}', '${tarikhStr}')" class="mt-4 w-full bg-gray-800 text-yellow-500 font-bold py-2 rounded-xl border border-yellow-500/30 flex justify-center items-center gap-2 hover:bg-gray-700 transition">
-              <i data-lucide="printer" class="w-4 h-4"></i> Muat Turun PDF
+            <div class="text-sm text-gray-200 mb-4 leading-relaxed">
+              ${infoHtml}
+            </div>
+            
+            <!-- Wrapper Tersembunyi Khas Untuk Template Laporan PDF (Satu Muka Surat A4) -->
+            <div id="${printId}" class="print-template">
+              <div style="text-align: center; border-bottom: 2px solid black; padding-bottom: 15px; margin-bottom: 20px;">
+                <h1 style="font-size: 20px; font-weight: bold; margin: 0;">YAYASAN SULTAN AZLAN SHAH</h1>
+                <h2 style="font-size: 16px; margin: 5px 0 0 0; color: #333;">SMK SUNGAI BAYO</h2>
+                <p style="font-size: 12px; margin: 5px 0 0 0; color: #666;">LAPORAN DOKUMENTASI SESI PEMBELAJARAN</p>
+              </div>
+              
+              <table style="width: 100%; margin-bottom: 20px; font-size: 14px;">
+                <tr><td style="width: 150px; font-weight: bold; padding-bottom: 5px;">Nama Guru</td><td style="padding-bottom: 5px;">: ${laporan.guru}</td></tr>
+                <tr><td style="font-weight: bold; padding-bottom: 5px;">Kelas</td><td style="padding-bottom: 5px;">: ${laporan.kelas}</td></tr>
+                <tr><td style="font-weight: bold; padding-bottom: 5px;">Tarikh / Masa</td><td style="padding-bottom: 5px;">: ${tarikhStr} / ${laporan.timestamp}</td></tr>
+              </table>
+
+              <div style="margin-bottom: 20px;">
+                <h3 style="font-size: 16px; font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 10px;">Butiran Sesi & Lampiran</h3>
+                <div style="font-size: 14px; line-height: 1.6; color: #000;">
+                  ${infoHtml}
+                </div>
+              </div>
+              
+              <div style="margin-top: 50px; padding-top: 30px; border-top: 1px solid #ccc; display: flex; justify-content: space-between; font-size: 14px; text-align: center;">
+                <div style="width: 45%;">
+                  <p style="margin-bottom: 60px;">Disediakan Oleh,</p>
+                  <p style="font-weight: bold; border-top: 1px dashed black; display: inline-block; padding-top: 5px;">(${laporan.guru})</p>
+                </div>
+                <div style="width: 45%;">
+                  <p style="margin-bottom: 60px;">Disahkan Oleh,</p>
+                  <p style="font-weight: bold; border-top: 1px dashed black; display: inline-block; padding-top: 5px;">Pihak Pengurusan</p>
+                </div>
+              </div>
+            </div>
+
+            <button onclick="cetakPDF('${printId}', '${laporan.kelas}', '${tarikhStr}')" class="mt-4 w-full bg-gray-800 text-yellow-500 font-bold py-3 rounded-xl border border-yellow-500/30 flex justify-center items-center gap-2 hover:bg-gray-700 transition">
+              <i data-lucide="printer" class="w-5 h-5"></i> Jana PDF Laporan (Satu Muka Surat)
             </button>
          `;
          container.appendChild(card);
@@ -831,18 +914,32 @@
       lucide.createIcons();
     }
 
-    function cetakPDF(elementId, kelas, tarikh) {
+    async function cetakPDF(elementId, kelas, tarikh) {
       const element = document.getElementById(elementId);
-      // Guna styling sementara supaya di PDF nampak putih dan kemas jika mahu, 
-      // atau kekalkan dark mode. Kita kekalkan dark mode untuk identiti.
+      
+      setLoading(true, "Menjana PDF Laporan...");
+      
+      // Tunjukkan sebentar untuk enjin html2pdf membaca elemen
+      element.style.display = 'block';
+      
       const opt = {
-        margin:       0.5,
+        margin:       [0.5, 0.5, 0.5, 0.5],
         filename:     `Laporan_${kelas}_${tarikh}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true, backgroundColor: '#121212' },
+        html2canvas:  { scale: 2, useCORS: true, logging: false },
         jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
       };
-      html2pdf().set(opt).from(element).save();
+      
+      try {
+        await html2pdf().set(opt).from(element).save();
+      } catch (e) {
+        console.error(e);
+        alert("Terdapat ralat teknikal semasa menjana PDF.");
+      }
+      
+      // Sembunyikan kembali selepas selesai
+      element.style.display = 'none';
+      setLoading(false);
     }
 
     function setLoading(show, text = "Memuat...") {
