@@ -14,7 +14,7 @@
     // KONFIGURASI UTAMA SISTEM (Ubah suai di sini)
     // ==========================================
     const APP_CONFIG = {
-      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbxVLTJa9BsA9BxNOcGwAvngamcn2sfucPx-T2ONsoPCJN2IM6tNkuyQ1Q6GwiveaywUiA/exec"
+      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbxuZxtQuis5BvcrPAUjJzUBalJ0XUKGcGbBbOyVHKww9KgOPEgzUuLlK85xwBPs3mhIiw/exec"
     };
   </script>
   <style>
@@ -76,7 +76,7 @@
       color: var(--text-main);
     }
     .hidden { display: none !important; }
-    input[type="checkbox"] { accent-color: var(--accent-gold); }
+    input[type="checkbox"] { accent-color: var(--accent-gold); cursor: pointer; }
     input[type="date"]::-webkit-calendar-picker-indicator {
       filter: invert(1);
       cursor: pointer;
@@ -95,6 +95,17 @@
   </style>
 </head>
 <body class="p-4">
+
+  <!-- Custom Modal Popup -->
+  <div id="custom-modal" class="fixed inset-0 z-[200] p-4 hidden flex items-center justify-center bg-black/80 backdrop-blur-md">
+    <div class="glass-panel w-full max-w-sm p-6 relative text-center border border-yellow-500/30">
+      <h3 class="font-bold text-xl mb-4 text-yellow-500" id="custom-modal-title">Notis Sistem</h3>
+      <p class="text-gray-200 mb-6 font-semibold" id="custom-modal-message"></p>
+      <div id="custom-modal-actions" class="flex gap-3 justify-center">
+        <!-- Buttons injected via JS -->
+      </div>
+    </div>
+  </div>
 
   <!-- Loading Overlay -->
   <div id="loading-overlay" class="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/80 backdrop-blur-md hidden">
@@ -274,6 +285,39 @@
     let currentHistoryData = null; 
     let reportFileQueue = []; 
 
+    // Fungsi Popup Custom untuk gantikan alert() dan confirm() supaya tak nampak URL
+    function showCustomModal(message, isConfirm = false, confirmCallback = null) {
+        const modal = document.getElementById('custom-modal');
+        document.getElementById('custom-modal-message').innerHTML = message.replace(/\n/g, '<br>');
+        const actions = document.getElementById('custom-modal-actions');
+        actions.innerHTML = '';
+        
+        if (isConfirm) {
+            const btnYa = document.createElement('button');
+            btnYa.className = 'flex-1 bg-yellow-500 text-black font-bold py-3 rounded-xl hover:bg-yellow-400 transition';
+            btnYa.innerText = 'Ya';
+            btnYa.onclick = () => { modal.classList.add('hidden'); if(confirmCallback) confirmCallback(); };
+            
+            const btnTidak = document.createElement('button');
+            btnTidak.className = 'flex-1 bg-gray-700 text-white font-bold py-3 rounded-xl hover:bg-gray-600 transition';
+            btnTidak.innerText = 'Batal';
+            btnTidak.onclick = () => { modal.classList.add('hidden'); };
+            
+            actions.appendChild(btnYa);
+            actions.appendChild(btnTidak);
+        } else {
+            const btnOk = document.createElement('button');
+            btnOk.className = 'w-full bg-yellow-500 text-black font-bold py-3 rounded-xl hover:bg-yellow-400 transition shadow-lg';
+            btnOk.innerText = 'Tutup';
+            btnOk.onclick = () => { modal.classList.add('hidden'); };
+            actions.appendChild(btnOk);
+        }
+        modal.classList.remove('hidden');
+    }
+    
+    function customAlert(message) { showCustomModal(message, false); }
+    function customConfirm(message, callback) { showCustomModal(message, true, callback); }
+
     async function apiCall(action, payload = null) {
       if (typeof google !== 'undefined' && google.script) {
         return new Promise((resolve, reject) => {
@@ -325,7 +369,7 @@
         setLoading(false);
       }).catch(err => {
         console.error(err);
-        alert("Gagal menyambung. Menggunakan mod luar talian.");
+        customAlert("Gagal menyambung ke pangkalan data.\nMenggunakan mod luar talian.");
         setLoading(false);
       });
     }
@@ -386,7 +430,7 @@
          renderStudents();
          setLoading(false);
       }).catch(err => {
-         alert("Gagal mendapatkan sejarah.");
+         customAlert("Gagal mendapatkan sejarah.");
          currentHistoryData = null;
          renderStudents();
          setLoading(false);
@@ -452,7 +496,8 @@
         card.innerHTML = `
           <div class="flex justify-between items-center border-b border-gray-800 pb-2 mb-1">
             <div class="flex items-center gap-3">
-              <input type="checkbox" id="hadir-${std.domId}" ${isChecked ? 'checked' : ''} onchange="toggleAttendance('${std.domId}')" class="w-6 h-6">
+              <!-- Membesarkan saiz checkbox untuk memudahkan sentuhan jari -->
+              <input type="checkbox" id="hadir-${std.domId}" ${isChecked ? 'checked' : ''} onchange="toggleAttendance('${std.domId}')" class="w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0 cursor-pointer rounded bg-gray-900 border-gray-700">
               <div>
                 <p class="font-bold text-gray-200">${std.nama}</p>
                 <p class="text-xs text-yellow-500">Terkumpul: <span id="terkumpul-${std.domId}">${std.prestasi}</span> ⭐</p>
@@ -593,7 +638,7 @@
     }
 
     function openAddMurid() {
-      if(!navigator.onLine) return alert('Memerlukan internet untuk operasi ini.');
+      if(!navigator.onLine) return customAlert('Memerlukan internet untuk operasi ini.');
       document.getElementById('murid-modal-title').innerText = 'Tambah Murid Baharu';
       document.getElementById('murid-modal-oldnama').value = '';
       document.getElementById('murid-modal-nama').value = '';
@@ -603,7 +648,7 @@
     }
 
     function editMurid(nama) {
-      if(!navigator.onLine) return alert('Memerlukan internet untuk operasi ini.');
+      if(!navigator.onLine) return customAlert('Memerlukan internet untuk operasi ini.');
       const std = students.find(s => s.nama === nama);
       if(std) {
         document.getElementById('murid-modal-title').innerText = 'Ubah Suai Murid';
@@ -622,7 +667,7 @@
       const nama = document.getElementById('murid-modal-nama').value.trim();
       const kelas = document.getElementById('murid-modal-kelas').value.trim();
       
-      if(!nama || !kelas) return alert('Sila isi nama dan kelas!');
+      if(!nama || !kelas) return customAlert('Sila isi nama dan kelas!');
       
       setLoading(true, "Menyimpan Data...");
       closeMuridModal();
@@ -630,24 +675,25 @@
       if(oldNama) {
         apiCall('updateMurid', { oldNama, nama, kelas }).then(() => {
           loadInitialData(); 
-        }).catch(err => { alert('Gagal: ' + err); setLoading(false); });
+        }).catch(err => { customAlert('Gagal: ' + err); setLoading(false); });
       } else {
         apiCall('addMurid', { nama, kelas }).then(() => {
           loadInitialData();
-        }).catch(err => { alert('Gagal: ' + err); setLoading(false); });
+        }).catch(err => { customAlert('Gagal: ' + err); setLoading(false); });
       }
     }
 
     function deleteMuridAction() {
       const nama = document.getElementById('murid-modal-oldnama').value;
       if(!nama) return;
-      if(confirm('Padam rekod ini secara kekal?')) {
+      
+      customConfirm('Padam rekod ini secara kekal?', () => {
         closeMuridModal();
         setLoading(true, "Memadam Data...");
         apiCall('deleteMurid', { nama }).then(() => {
           loadInitialData();
-        }).catch(err => { alert('Gagal: ' + err); setLoading(false); });
-      }
+        }).catch(err => { customAlert('Gagal: ' + err); setLoading(false); });
+      });
     }
 
     async function fetchGPS() {
@@ -748,10 +794,10 @@
       const kelas = document.getElementById('kelas-select').value;
       const tarikh = document.getElementById('tarikh-kehadiran').value;
       
-      if(!guru || !kelas || !tarikh) return alert('Sila lengkapkan pilihan guru, kelas & tarikh!');
+      if(!guru || !kelas || !tarikh) return customAlert('Sila lengkapkan pilihan guru, kelas & tarikh!');
       
       const stdInClass = students.filter(s => s.kelas === kelas);
-      if(stdInClass.length === 0) return alert('Tiada murid untuk disimpan.');
+      if(stdInClass.length === 0) return customAlert('Tiada murid untuk disimpan.');
 
       setLoading(true, "Menyimpan Markah...");
       const gps = await fetchGPS();
@@ -780,8 +826,8 @@
       const tarikh = document.getElementById('tarikh-laporan-baru').value;
       const ulasan = document.getElementById('ulasan').value;
       
-      if(!guru || !kelas || !tarikh) return alert('Sila pilih nama guru, kelas & tarikh di atas!');
-      if(!ulasan && reportFileQueue.length === 0) return alert('Sila isi ulasan atau muat naik fail!');
+      if(!guru || !kelas || !tarikh) return customAlert('Sila pilih nama guru, kelas & tarikh di atas!');
+      if(!ulasan && reportFileQueue.length === 0) return customAlert('Sila isi ulasan atau muat naik fail!');
 
       setLoading(true, "Memproses Fail & Upload...");
       const gps = await fetchGPS();
@@ -804,7 +850,7 @@
       if (navigator.onLine) {
         apiCall(endpoint, payload).then(res => {
           setLoading(false);
-          alert(`${successMsg}\nPoint Tambahan Direkod: +${res.pointsEarned || 0}`);
+          customAlert(`${successMsg}\nPoint Tambahan Direkod: +${res.pointsEarned || 0}`);
           if(endpoint === 'processReport') {
             document.getElementById('ulasan').value = '';
             reportFileQueue = [];
@@ -814,13 +860,13 @@
           loadInitialData(); 
         }).catch(err => {
           setLoading(false);
-          alert('Ralat Pelayan: ' + err);
+          customAlert('Ralat Pelayan: ' + err);
         });
       } else {
         setLoading(false);
         offlineQueue.push({ endpoint, payload });
         localStorage.setItem('offlineQueue', JSON.stringify(offlineQueue));
-        alert("Talian terputus. Disimpan untuk segerak automatik.");
+        customAlert("Talian terputus.\nDisimpan untuk segerak automatik.");
       }
     }
 
@@ -833,7 +879,7 @@
         renderReportHistory(res.data, tarikh);
         setLoading(false);
       }).catch(err => {
-        alert("Gagal mendapat laporan: " + err);
+        customAlert("Gagal mendapat laporan: " + err);
         setLoading(false);
       });
     }
@@ -860,22 +906,22 @@
          let imageMatches = [...laporan.maklumat.matchAll(/\[IMAGE\](https?:\/\/[^\s<]+)/g)].map(m => m[1]);
          let fileMatches = [...laporan.maklumat.matchAll(/\[FILE\](https?:\/\/[^\s<]+)/g)].map(m => m[1]);
 
-         // Paparan UI Sistem (Bentuk Ikon Moden)
+         // Paparan UI Sistem: Memaparkan terus Gambar sebagai Thumbnail dan Ikon untuk Dokumen
          let uiAttachmentsHtml = '';
          if (imageMatches.length > 0 || fileMatches.length > 0) {
              uiAttachmentsHtml = '<div class="mt-4 flex flex-wrap gap-3">';
              imageMatches.forEach((url, idx) => {
+                 // Menggunakan tag img untuk terus paparkan gambar pada skrin (History Tab)
                  uiAttachmentsHtml += `
-                 <a href="${url}" target="_blank" class="flex flex-col items-center justify-center p-3 bg-gray-800 rounded-xl border border-gray-600 hover:bg-yellow-500/20 hover:border-yellow-500 transition w-24 h-24">
-                     <i data-lucide="image" class="w-8 h-8 text-blue-400 mb-2"></i>
-                     <span class="text-[10px] text-gray-300 w-full text-center truncate">Gambar ${idx + 1}</span>
+                 <a href="${url}" target="_blank" class="relative flex flex-col items-center justify-center p-1 bg-gray-800 rounded-xl border border-gray-600 hover:border-yellow-500 transition w-24 h-24 sm:w-32 sm:h-32 overflow-hidden group shadow-md flex-shrink-0">
+                     <img src="${url}" alt="Gambar ${idx + 1}" referrerpolicy="no-referrer" class="w-full h-full object-cover rounded-lg group-hover:scale-110 transition duration-300">
                  </a>`;
              });
              fileMatches.forEach((url, idx) => {
                  uiAttachmentsHtml += `
-                 <a href="${url}" target="_blank" class="flex flex-col items-center justify-center p-3 bg-gray-800 rounded-xl border border-gray-600 hover:bg-yellow-500/20 hover:border-yellow-500 transition w-24 h-24">
-                     <i data-lucide="file-text" class="w-8 h-8 text-red-400 mb-2"></i>
-                     <span class="text-[10px] text-gray-300 w-full text-center truncate">Dokumen ${idx + 1}</span>
+                 <a href="${url}" target="_blank" class="flex flex-col items-center justify-center p-3 bg-gray-800 rounded-xl border border-gray-600 hover:bg-yellow-500/20 hover:border-yellow-500 transition w-24 h-24 sm:w-32 sm:h-32 shadow-md flex-shrink-0">
+                     <i data-lucide="file-text" class="w-8 h-8 sm:w-10 sm:h-10 text-red-400 mb-2"></i>
+                     <span class="text-[10px] sm:text-xs text-gray-300 w-full text-center truncate">Dokumen ${idx + 1}</span>
                  </a>`;
              });
              uiAttachmentsHtml += '</div>';
@@ -991,7 +1037,7 @@
         await html2pdf().set(opt).from(element).save();
       } catch (e) {
         console.error(e);
-        alert("Terdapat ralat teknikal semasa menjana PDF.");
+        customAlert("Terdapat ralat teknikal semasa menjana PDF.");
       }
       
       // Sembunyikan kembali selepas selesai
@@ -1035,7 +1081,7 @@
           }
         }
         if(offlineQueue.length === 0) {
-           alert("Data luar talian berjaya disegerakkan!");
+           customAlert("Data luar talian berjaya disegerakkan!");
            loadInitialData();
         }
       }
