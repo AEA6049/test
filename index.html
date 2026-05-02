@@ -14,7 +14,7 @@
     // KONFIGURASI UTAMA SISTEM (Ubah suai di sini)
     // ==========================================
     const APP_CONFIG = {
-      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbzZkUpWJjibrLZPO3eGnJ4JZWvVVbgYgvU-iHel0hU6s00K5sJBokJ3gvFn6jY9cDN1_A/exec"
+      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbxVLTJa9BsA9BxNOcGwAvngamcn2sfucPx-T2ONsoPCJN2IM6tNkuyQ1Q6GwiveaywUiA/exec"
     };
   </script>
   <style>
@@ -850,7 +850,6 @@
       data.forEach((laporan, index) => {
          const printId = `print-laporan-${index}`;
          
-         // Ekstrak Teks, Imej dan Fail secara berasingan menggunakan Regex
          let textOnly = laporan.maklumat
             .replace(/\[IMAGE\](https?:\/\/[^\s<]+)/g, '')
             .replace(/\[FILE\](https?:\/\/[^\s<]+)/g, '')
@@ -861,54 +860,72 @@
          let imageMatches = [...laporan.maklumat.matchAll(/\[IMAGE\](https?:\/\/[^\s<]+)/g)].map(m => m[1]);
          let fileMatches = [...laporan.maklumat.matchAll(/\[FILE\](https?:\/\/[^\s<]+)/g)].map(m => m[1]);
 
-         // HTML untuk UI Sistem (Paparan Skrin Utama)
-         let uiImagesHtml = imageMatches.map(url => `<div class="mt-4 mb-2 flex justify-center"><img src="${url}" crossorigin="anonymous" class="max-w-full h-auto rounded border border-gray-400 shadow-sm" style="max-height:350px;"></div>`).join('');
-         let uiFilesHtml = fileMatches.map(url => `<div class="mt-2"><a href="${url}" target="_blank" class="text-blue-500 font-bold underline flex items-center gap-1"><i data-lucide="paperclip" class="w-4 h-4"></i> Pautan Fail / Dokumen</a></div>`).join('');
+         // Paparan UI Sistem (Bentuk Ikon Moden)
+         let uiAttachmentsHtml = '';
+         if (imageMatches.length > 0 || fileMatches.length > 0) {
+             uiAttachmentsHtml = '<div class="mt-4 flex flex-wrap gap-3">';
+             imageMatches.forEach((url, idx) => {
+                 uiAttachmentsHtml += `
+                 <a href="${url}" target="_blank" class="flex flex-col items-center justify-center p-3 bg-gray-800 rounded-xl border border-gray-600 hover:bg-yellow-500/20 hover:border-yellow-500 transition w-24 h-24">
+                     <i data-lucide="image" class="w-8 h-8 text-blue-400 mb-2"></i>
+                     <span class="text-[10px] text-gray-300 w-full text-center truncate">Gambar ${idx + 1}</span>
+                 </a>`;
+             });
+             fileMatches.forEach((url, idx) => {
+                 uiAttachmentsHtml += `
+                 <a href="${url}" target="_blank" class="flex flex-col items-center justify-center p-3 bg-gray-800 rounded-xl border border-gray-600 hover:bg-yellow-500/20 hover:border-yellow-500 transition w-24 h-24">
+                     <i data-lucide="file-text" class="w-8 h-8 text-red-400 mb-2"></i>
+                     <span class="text-[10px] text-gray-300 w-full text-center truncate">Dokumen ${idx + 1}</span>
+                 </a>`;
+             });
+             uiAttachmentsHtml += '</div>';
+         }
+
          let uiTextHtml = `<div class="text-sm text-gray-200 mb-4 leading-relaxed">${textOnly}</div>`;
 
-         // Logik Pembinaan Muka Surat Khas untuk Cetakan Laporan PDF
+         // PDF Generator Logic: Susunan Pintar & Berasingan Muka Surat
          let pdfImagesHtml = '';
-         let pdfPageBreakImages = '';
          if (imageMatches.length > 0) {
-            if (imageMatches.length <= 4) {
-               // Jika gambar 4 atau ke bawah, letak di halaman laporan pertama (Satu Muka Surat)
-               pdfImagesHtml = `<div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 20px;">` + 
-                  imageMatches.map(url => `<div style="width: 47%; text-align: center; margin-bottom: 10px;"><img src="${url}" crossorigin="anonymous" style="max-width: 100%; max-height: 200px; object-fit: contain; border: 1px solid #ccc; border-radius: 4px; padding: 2px;"></div>`).join('') + `</div>`;
-            } else {
-               // Jika gambar lebih dari 4, asingkan muka surat (Page Break)
-               pdfPageBreakImages = `<div class="html2pdf__page-break"></div>`;
-               pdfImagesHtml = `<h3 style="font-size: 16px; font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid #ccc; padding-bottom: 5px;">Lampiran Gambar Tambahan</h3>`;
-               pdfImagesHtml += `<div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 10px;">` + 
-                  imageMatches.map(url => `<div style="width: 47%; text-align: center; margin-bottom: 10px;"><img src="${url}" crossorigin="anonymous" style="max-width: 100%; max-height: 250px; object-fit: contain; border: 1px solid #ccc; border-radius: 4px; padding: 2px;"></div>`).join('') + `</div>`;
-            }
+            let pageBreak = imageMatches.length > 4 ? '<div class="html2pdf__page-break"></div>' : '';
+            pdfImagesHtml = `
+               ${pageBreak}
+               <div style="margin-top: 30px;">
+                  <h3 style="font-size: 16px; font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 15px;">Lampiran Gambar Bukti</h3>
+                  <div style="display: flex; flex-wrap: wrap; gap: 15px; justify-content: center;">
+            `;
+            imageMatches.forEach(url => {
+               pdfImagesHtml += `
+                  <div style="width: 45%; text-align: center; margin-bottom: 15px;">
+                     <img src="${url}" crossorigin="anonymous" style="max-width: 100%; max-height: 250px; object-fit: contain; border: 1px solid #ddd; padding: 4px; border-radius: 4px;">
+                  </div>
+               `;
+            });
+            pdfImagesHtml += `</div></div>`;
          }
 
          let pdfFilesHtml = '';
          if (fileMatches.length > 0) {
-            // Setiap fail dokumen akan diletakkan di dalam helaian muka surat yang baru
             fileMatches.forEach((url, i) => {
-                pdfFilesHtml += `<div class="html2pdf__page-break"></div>
-                                 <div style="padding: 40px; text-align: center; border: 2px dashed #000; margin-top: 50px;">
-                                    <h3 style="font-size: 18px; font-weight: bold; margin-bottom: 20px;">Lampiran Dokumen Sokongan ${i + 1}</h3>
-                                    <p style="font-size: 14px; margin-bottom: 20px;">Sila rujuk pautan di bawah untuk melihat atau memuat turun fail dokumen tersebut:</p>
-                                    <a href="${url}" target="_blank" style="color: #0000EE; text-decoration: underline; font-size: 16px; word-break: break-all;">${url}</a>
-                                 </div>`;
+                pdfFilesHtml += `
+                <div class="html2pdf__page-break"></div>
+                <div style="padding: 40px; text-align: center; border: 2px dashed #666; margin-top: 50px; border-radius: 8px; background-color: #fafafa;">
+                   <h3 style="font-size: 18px; font-weight: bold; margin-bottom: 20px; color: #333;">Lampiran Dokumen Sokongan ${i + 1}</h3>
+                   <p style="font-size: 14px; margin-bottom: 20px; color: #555;">Sila klik atau salin pautan di bawah untuk memuat turun fail dokumen tersebut:</p>
+                   <a href="${url}" target="_blank" style="color: #0000EE; text-decoration: underline; font-size: 14px; word-break: break-all;">${url}</a>
+                </div>`;
             });
          }
 
          const card = document.createElement('div');
          card.className = 'neu-flat p-4 border border-yellow-500/20 mb-4 relative';
          card.innerHTML = `
-            <!-- Paparan Skrin UI Sistem -->
             <div class="border-b border-gray-700 pb-2 mb-3">
               <h3 class="text-lg font-bold text-yellow-500">Laporan Sesi: ${laporan.kelas}</h3>
               <p class="text-xs text-gray-400">Guru: ${laporan.guru} | Masa: ${laporan.timestamp}</p>
             </div>
             ${uiTextHtml}
-            ${uiImagesHtml}
-            ${uiFilesHtml}
+            ${uiAttachmentsHtml}
             
-            <!-- Wrapper Tersembunyi Khas Untuk Template Cetakan Laporan PDF Pintar -->
             <div id="${printId}" class="print-template">
               <div style="text-align: center; border-bottom: 2px solid black; padding-bottom: 15px; margin-bottom: 20px;">
                 <h1 style="font-size: 20px; font-weight: bold; margin: 0;">YAYASAN SULTAN AZLAN SHAH</h1>
@@ -924,15 +941,12 @@
 
               <div style="margin-bottom: 20px;">
                 <h3 style="font-size: 16px; font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 10px;">Butiran Sesi</h3>
-                <div style="font-size: 14px; line-height: 1.6; color: #000;">
+                <div style="font-size: 14px; line-height: 1.6; color: #000; min-height: 80px;">
                   ${textOnly}
                 </div>
               </div>
               
-              ${imageMatches.length <= 4 ? pdfImagesHtml : ''}
-              
-              <!-- Ruangan Tanda Tangan (Berada di helaian yang sama dengan butiran laporan utama) -->
-              <div style="margin-top: 50px; padding-top: 30px; border-top: 1px solid #ccc; display: flex; justify-content: space-between; font-size: 14px; text-align: center;">
+              <div style="margin-top: 40px; padding-top: 20px; display: flex; justify-content: space-between; font-size: 14px; text-align: center;">
                 <div style="width: 45%;">
                   <p style="margin-bottom: 60px;">Disediakan Oleh,</p>
                   <p style="font-weight: bold; border-top: 1px dashed black; display: inline-block; padding-top: 5px; width: 80%;">(${laporan.guru})</p>
@@ -943,9 +957,7 @@
                 </div>
               </div>
 
-              ${pdfPageBreakImages}
-              ${imageMatches.length > 4 ? pdfImagesHtml : ''}
-              
+              ${pdfImagesHtml}
               ${pdfFilesHtml}
             </div>
 
