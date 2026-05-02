@@ -14,7 +14,7 @@
     // KONFIGURASI UTAMA SISTEM (Ubah suai di sini)
     // ==========================================
     const APP_CONFIG = {
-      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbxuZxtQuis5BvcrPAUjJzUBalJ0XUKGcGbBbOyVHKww9KgOPEgzUuLlK85xwBPs3mhIiw/exec"
+      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbwEZseMdjfl55XpPwIgXkkoubOopVhUKG1t1E5MZudLdwIAjOVi2JeOnT8QEsueqbal7g/exec"
     };
   </script>
   <style>
@@ -269,7 +269,7 @@
       <div class="space-y-4 text-sm text-gray-300">
         <p>⭐ <b>Prestasi & Integriti:</b> Sistem markah (guru & murid) HANYA sah untuk hari semasa sahaja. Kemaskini hari lepas hanya menyimpan rekod (0 point).</p>
         <p>🗺️ <b>Pemetaan GPS:</b> Koordinat GPS disimpan secara tersembunyi ke dalam Pangkalan Data untuk simpanan pentadbir.</p>
-        <p>📄 <b>Laporan & Cetakan:</b> Fail gambar akan dipaparkan di dalam PDF. Susunan pintar (<4 pada muka surat pertama, >4 pada helaian berasingan) dan helaian khas bagi setiap pautan dokumen.</p>
+        <p>📄 <b>Laporan & Cetakan:</b> Fail gambar akan dipaparkan di dalam PDF. Susunan pintar (kolaj menarik) dan butang muat turun khas bagi dokumen.</p>
         <p>📎 <b>Muat Naik Berbilang:</b> Anda boleh memilih fail satu persatu tanpa had untuk dihantar dalam satu laporan.</p>
       </div>
     </div>
@@ -285,7 +285,7 @@
     let currentHistoryData = null; 
     let reportFileQueue = []; 
 
-    // Fungsi Popup Custom untuk gantikan alert() dan confirm() supaya tak nampak URL
+    // Fungsi Popup Custom untuk gantikan alert() dan confirm()
     function showCustomModal(message, isConfirm = false, confirmCallback = null) {
         const modal = document.getElementById('custom-modal');
         document.getElementById('custom-modal-message').innerHTML = message.replace(/\n/g, '<br>');
@@ -317,6 +317,13 @@
     
     function customAlert(message) { showCustomModal(message, false); }
     function customConfirm(message, callback) { showCustomModal(message, true, callback); }
+
+    function formatDateMY(yyyyMMdd) {
+        if (!yyyyMMdd) return '';
+        const parts = yyyyMMdd.split('-');
+        if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+        return yyyyMMdd;
+    }
 
     async function apiCall(action, payload = null) {
       if (typeof google !== 'undefined' && google.script) {
@@ -496,7 +503,6 @@
         card.innerHTML = `
           <div class="flex justify-between items-center border-b border-gray-800 pb-2 mb-1">
             <div class="flex items-center gap-3">
-              <!-- Membesarkan saiz checkbox untuk memudahkan sentuhan jari -->
               <input type="checkbox" id="hadir-${std.domId}" ${isChecked ? 'checked' : ''} onchange="toggleAttendance('${std.domId}')" class="w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0 cursor-pointer rounded bg-gray-900 border-gray-700">
               <div>
                 <p class="font-bold text-gray-200">${std.nama}</p>
@@ -817,7 +823,7 @@
         gps 
       };
 
-      handleSubmission('processAttendance', payload, `Maklumat Kelas ${kelas} bagi tarikh ${tarikh} Berjaya Disimpan!`);
+      handleSubmission('processAttendance', payload, `Maklumat Kelas ${kelas} bagi tarikh ${formatDateMY(tarikh)} Berjaya Disimpan!`);
     }
 
     async function submitReport() {
@@ -887,9 +893,10 @@
     function renderReportHistory(data, tarikhStr) {
       const container = document.getElementById('report-history-container');
       container.innerHTML = '';
+      const displayTarikh = formatDateMY(tarikhStr);
 
       if(!data || data.length === 0) {
-         container.innerHTML = `<p class="text-sm text-gray-500 text-center py-4">Tiada laporan direkod pada ${tarikhStr}.</p>`;
+         container.innerHTML = `<p class="text-sm text-gray-500 text-center py-4">Tiada laporan direkod pada ${displayTarikh}.</p>`;
          return;
       }
 
@@ -897,31 +904,30 @@
          const printId = `print-laporan-${index}`;
          
          let textOnly = laporan.maklumat
-            .replace(/\[IMAGE\](https?:\/\/[^\s<]+)/g, '')
-            .replace(/\[FILE\](https?:\/\/[^\s<]+)/g, '')
+            .replace(/\[IMAGE\|.*?\](https?:\/\/[^\s<]+)/g, '')
+            .replace(/\[FILE\|.*?\](https?:\/\/[^\s<]+)/g, '')
             .replace(/Lampiran:\s*/g, '')
             .trim()
             .replace(/\n/g, '<br>');
             
-         let imageMatches = [...laporan.maklumat.matchAll(/\[IMAGE\](https?:\/\/[^\s<]+)/g)].map(m => m[1]);
-         let fileMatches = [...laporan.maklumat.matchAll(/\[FILE\](https?:\/\/[^\s<]+)/g)].map(m => m[1]);
+         let imageMatches = [...laporan.maklumat.matchAll(/\[IMAGE\|(.*?)\](https?:\/\/[^\s<]+)/g)].map(m => ({name: m[1], url: m[2]}));
+         let fileMatches = [...laporan.maklumat.matchAll(/\[FILE\|(.*?)\](https?:\/\/[^\s<]+)/g)].map(m => ({name: m[1], url: m[2]}));
 
-         // Paparan UI Sistem: Memaparkan terus Gambar sebagai Thumbnail dan Ikon untuk Dokumen
+         // UI Sistem Paparan: Menarik dan Rapi (Bukan link panjang)
          let uiAttachmentsHtml = '';
          if (imageMatches.length > 0 || fileMatches.length > 0) {
              uiAttachmentsHtml = '<div class="mt-4 flex flex-wrap gap-3">';
-             imageMatches.forEach((url, idx) => {
-                 // Menggunakan tag img untuk terus paparkan gambar pada skrin (History Tab)
+             imageMatches.forEach((img, idx) => {
                  uiAttachmentsHtml += `
-                 <a href="${url}" target="_blank" class="relative flex flex-col items-center justify-center p-1 bg-gray-800 rounded-xl border border-gray-600 hover:border-yellow-500 transition w-24 h-24 sm:w-32 sm:h-32 overflow-hidden group shadow-md flex-shrink-0">
-                     <img src="${url}" alt="Gambar ${idx + 1}" referrerpolicy="no-referrer" class="w-full h-full object-cover rounded-lg group-hover:scale-110 transition duration-300">
+                 <a href="${img.url}" target="_blank" class="relative flex flex-col items-center justify-center p-1 bg-gray-800 rounded-xl border border-gray-600 hover:border-yellow-500 transition w-24 h-24 sm:w-32 sm:h-32 overflow-hidden group shadow-md flex-shrink-0">
+                     <img src="${img.url}" alt="${img.name}" title="${img.name}" referrerpolicy="no-referrer" class="w-full h-full object-cover rounded-lg group-hover:scale-110 transition duration-300">
                  </a>`;
              });
-             fileMatches.forEach((url, idx) => {
+             fileMatches.forEach((file, idx) => {
                  uiAttachmentsHtml += `
-                 <a href="${url}" target="_blank" class="flex flex-col items-center justify-center p-3 bg-gray-800 rounded-xl border border-gray-600 hover:bg-yellow-500/20 hover:border-yellow-500 transition w-24 h-24 sm:w-32 sm:h-32 shadow-md flex-shrink-0">
+                 <a href="${file.url}" target="_blank" title="${file.name}" class="flex flex-col items-center justify-center p-3 bg-gray-800 rounded-xl border border-gray-600 hover:bg-yellow-500/20 hover:border-yellow-500 transition w-24 h-24 sm:w-32 sm:h-32 shadow-md flex-shrink-0">
                      <i data-lucide="file-text" class="w-8 h-8 sm:w-10 sm:h-10 text-red-400 mb-2"></i>
-                     <span class="text-[10px] sm:text-xs text-gray-300 w-full text-center truncate">Dokumen ${idx + 1}</span>
+                     <span class="text-[10px] sm:text-xs text-gray-300 w-full text-center truncate">${file.name}</span>
                  </a>`;
              });
              uiAttachmentsHtml += '</div>';
@@ -929,20 +935,22 @@
 
          let uiTextHtml = `<div class="text-sm text-gray-200 mb-4 leading-relaxed">${textOnly}</div>`;
 
-         // PDF Generator Logic: Susunan Pintar & Berasingan Muka Surat
+         // PDF Generator Logic: Susunan Kolaj Pintar dan Butiran Dokumen
          let pdfImagesHtml = '';
          if (imageMatches.length > 0) {
             let pageBreak = imageMatches.length > 4 ? '<div class="html2pdf__page-break"></div>' : '';
+            let collW = imageMatches.length === 1 ? '100%' : (imageMatches.length === 2 ? '48%' : '31%');
+            
             pdfImagesHtml = `
                ${pageBreak}
                <div style="margin-top: 30px;">
                   <h3 style="font-size: 16px; font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 15px;">Lampiran Gambar Bukti</h3>
-                  <div style="display: flex; flex-wrap: wrap; gap: 15px; justify-content: center;">
+                  <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; align-items: stretch;">
             `;
-            imageMatches.forEach(url => {
+            imageMatches.forEach(img => {
                pdfImagesHtml += `
-                  <div style="width: 45%; text-align: center; margin-bottom: 15px;">
-                     <img src="${url}" crossorigin="anonymous" style="max-width: 100%; max-height: 250px; object-fit: contain; border: 1px solid #ddd; padding: 4px; border-radius: 4px;">
+                  <div style="width: ${collW}; margin-bottom: 10px; overflow: hidden; border-radius: 8px; border: 2px solid #eee; height: 200px;">
+                     <img src="${img.url}" crossorigin="anonymous" style="width: 100%; height: 100%; object-fit: cover;">
                   </div>
                `;
             });
@@ -951,15 +959,20 @@
 
          let pdfFilesHtml = '';
          if (fileMatches.length > 0) {
-            fileMatches.forEach((url, i) => {
+            pdfFilesHtml = `
+            <div style="margin-top: 20px;">
+               <h3 style="font-size: 16px; font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 15px;">Lampiran Dokumen Sokongan</h3>
+               <div style="display: flex; flex-wrap: wrap; gap: 15px; justify-content: center;">
+            `;
+            fileMatches.forEach((file, i) => {
                 pdfFilesHtml += `
-                <div class="html2pdf__page-break"></div>
-                <div style="padding: 40px; text-align: center; border: 2px dashed #666; margin-top: 50px; border-radius: 8px; background-color: #fafafa;">
-                   <h3 style="font-size: 18px; font-weight: bold; margin-bottom: 20px; color: #333;">Lampiran Dokumen Sokongan ${i + 1}</h3>
-                   <p style="font-size: 14px; margin-bottom: 20px; color: #555;">Sila klik atau salin pautan di bawah untuk memuat turun fail dokumen tersebut:</p>
-                   <a href="${url}" target="_blank" style="color: #0000EE; text-decoration: underline; font-size: 14px; word-break: break-all;">${url}</a>
+                <div style="width: 45%; padding: 15px; border: 2px dashed #999; border-radius: 8px; background-color: #f9f9f9; text-align: center;">
+                   <div style="font-size: 24px; color: #d93025; margin-bottom: 10px;">📄</div>
+                   <h4 style="font-size: 14px; font-weight: bold; margin: 0 0 10px 0; color: #333; word-break: break-all;">${file.name}</h4>
+                   <a href="${file.url}" target="_blank" style="display: inline-block; padding: 6px 12px; background: #FFCC00; color: #000; text-decoration: none; font-weight: bold; border-radius: 4px; font-size: 12px;">Muat Turun Fail</a>
                 </div>`;
             });
+            pdfFilesHtml += `</div></div>`;
          }
 
          const card = document.createElement('div');
@@ -982,7 +995,7 @@
               <table style="width: 100%; margin-bottom: 20px; font-size: 14px;">
                 <tr><td style="width: 150px; font-weight: bold; padding-bottom: 5px;">Nama Guru</td><td style="padding-bottom: 5px;">: ${laporan.guru}</td></tr>
                 <tr><td style="font-weight: bold; padding-bottom: 5px;">Kelas</td><td style="padding-bottom: 5px;">: ${laporan.kelas}</td></tr>
-                <tr><td style="font-weight: bold; padding-bottom: 5px;">Tarikh / Masa</td><td style="padding-bottom: 5px;">: ${tarikhStr} / ${laporan.timestamp}</td></tr>
+                <tr><td style="font-weight: bold; padding-bottom: 5px;">Tarikh / Masa</td><td style="padding-bottom: 5px;">: ${displayTarikh} / ${laporan.timestamp}</td></tr>
               </table>
 
               <div style="margin-bottom: 20px;">
@@ -1007,7 +1020,7 @@
               ${pdfFilesHtml}
             </div>
 
-            <button onclick="cetakPDF('${printId}', '${laporan.kelas}', '${tarikhStr}')" class="mt-4 w-full bg-gray-800 text-yellow-500 font-bold py-3 rounded-xl border border-yellow-500/30 flex justify-center items-center gap-2 hover:bg-gray-700 transition">
+            <button onclick="cetakPDF('${printId}', '${laporan.kelas}', '${displayTarikh.replace(/\//g, '')}')" class="mt-4 w-full bg-gray-800 text-yellow-500 font-bold py-3 rounded-xl border border-yellow-500/30 flex justify-center items-center gap-2 hover:bg-gray-700 transition">
               <i data-lucide="printer" class="w-5 h-5"></i> Jana PDF Laporan Secara Dinamik
             </button>
          `;
@@ -1030,7 +1043,7 @@
         image:        { type: 'jpeg', quality: 0.98 },
         html2canvas:  { scale: 2, useCORS: true, logging: false },
         jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' },
-        pagebreak:    { mode: ['css', 'legacy'] } // Pastikan enjin memecah helaian secara tepat
+        pagebreak:    { mode: ['css', 'legacy'] } 
       };
       
       try {
