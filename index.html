@@ -16,7 +16,7 @@
     // KONFIGURASI UTAMA SISTEM (Ubah suai di sini)
     // ==========================================
     const APP_CONFIG = {
-      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbyVHsLiVe_hxwmRMeF5FgUHBNGwCNJSziw0TTfhPo50cyRAt_GxlboYLVkZQTFpAzlPuA/exec"
+      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbw9a-NBF_lfoj0MG4TSbhCML_h_BCyHA-FAlTGUxi8MKMIaqpPE0ooeWID1UOWZyGAuog/exec"
     };
   </script>
   <style>
@@ -1234,23 +1234,26 @@
       setLoading(true, "Memproses Imej & Menjana PDF...");
       
       const printContainer = document.createElement('div');
-      // Tetapan saiz dinamik tetapi selamat untuk A4 (794px width @ 96dpi)
+      // Menetapkan kelebaran kontena statik supaya kanvas html2pdf dirender dengan stabil.
       printContainer.style.position = 'absolute';
-      printContainer.style.left = '-9999px'; // Alih dari paparan skrin
+      printContainer.style.left = '-9999px'; // Alih dari paparan skrin utama
       printContainer.style.top = '0';
-      printContainer.style.width = '794px'; 
+      printContainer.style.width = '800px'; // Render pada kelebaran tetap yang cukup luas (800px)
       printContainer.style.background = '#ffffff';
       printContainer.style.zIndex = '-999';
       printContainer.style.margin = '0';
-      printContainer.style.padding = '0'; // html2pdf auto tambah margin sebagai padding
+      printContainer.style.padding = '0';
       printContainer.style.textAlign = 'left';
       printContainer.style.boxSizing = 'border-box';
 
       const clone = originalElement.cloneNode(true);
       clone.style.display = 'block'; 
       clone.id = elementId + '-clone';
+      clone.style.width = '100%';
+      clone.style.margin = '0';
+      clone.style.padding = '0';
       
-      // Paksa elemen patuh kepada had margin
+      // Paksa setiap elemen dalam klon patuh kepada sempadan bagi mengelak tumpahan piksel
       const allDescendants = clone.querySelectorAll('*');
       allDescendants.forEach(el => {
           el.style.maxWidth = '100%';
@@ -1286,21 +1289,21 @@
       });
       
       await Promise.all(imagePromises);
-      // Ekstra penangguhan (1.5 saat) bagi memastikan DOM render Base64 imej sepenuhnya
+      // Penangguhan ekstra bagi memastikan DOM memuatkan paparan Base64 imej sepenuhnya
       await new Promise(r => setTimeout(r, 1500));
 
-      // Konfigurasi html2pdf dikemaskini untuk susunan A4 selamat berpusat
+      // Konfigurasi html2pdf yang dibaiki: membuang windowWidth untuk mengelak pertembungan skala (clipping)
       const opt = {
-        margin:       [0.5, 0.5, 0.5, 0.5], // Lebihkan margin inci ke 0.5 untuk elak terkeluar border
+        margin:       12, // Tetapkan margin 12mm yang standard dan seragam untuk semua sisi
         filename:     `Laporan_${kelas.replace(/\s+/g, '_')}_${tarikh}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true, logging: false, scrollY: 0, windowWidth: 794 },
-        jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' },
+        html2canvas:  { scale: 2, useCORS: true, letterRendering: true, logging: false }, // windowWidth dibuang
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }, // Unit mm lebih harmoni untuk penetapan dokumen bersaiz A4.
         pagebreak:    { mode: ['css', 'legacy'] }
       };
       
       try {
-        await html2pdf().set(opt).from(clone).save();
+        await html2pdf().set(opt).from(printContainer).save(); // Tukar rujukan "clone" kepada "printContainer" terus untuk keseragaman
       } catch (e) {
         console.error(e);
         customAlert("Terdapat ralat teknikal semasa menjana PDF. Pastikan talian internet stabil.");
