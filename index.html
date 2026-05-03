@@ -16,7 +16,7 @@
     // KONFIGURASI UTAMA SISTEM (Ubah suai di sini)
     // ==========================================
     const APP_CONFIG = {
-      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbz2RCEUB-45zouoE7NMh6i69e8ngCQtiumRt2rJJc7FG_gN6n-H0AkpcsxmOYKLy2bapA/exec"
+      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbw9a-NBF_lfoj0MG4TSbhCML_h_BCyHA-FAlTGUxi8MKMIaqpPE0ooeWID1UOWZyGAuog/exec"
     };
   </script>
   <style>
@@ -1097,7 +1097,7 @@
          let pdfImagesHtml = '';
          if (imageMatches.length > 0) {
             let collW = imageMatches.length === 1 ? '90%' : '45%';
-            pdfImagesHtml = `<div style="text-align: center; font-size: 0; margin: 0 auto; page-break-inside: avoid; max-width: 100%; box-sizing: border-box;">`;
+            pdfImagesHtml = `<div style="text-align: center; font-size: 0; margin: 0 auto; page-break-inside: avoid; width: 100%; box-sizing: border-box;">`;
             imageMatches.forEach(img => {
                pdfImagesHtml += `
                   <div style="display: inline-block; width: ${collW}; margin: 10px 2%; border: 1px solid #eaeaea; padding: 8px; box-sizing: border-box; background: #fafafa; vertical-align: top; border-radius: 4px;">
@@ -1111,7 +1111,7 @@
 
          let pdfFilesHtml = '';
          if (fileMatches.length > 0) {
-            pdfFilesHtml = `<div style="text-align: center; font-size: 0; margin: 0 auto; page-break-inside: avoid; max-width: 100%; box-sizing: border-box;">`;
+            pdfFilesHtml = `<div style="text-align: center; font-size: 0; margin: 0 auto; page-break-inside: avoid; width: 100%; box-sizing: border-box;">`;
             fileMatches.forEach((file) => {
                 // Jana QR kod dengan pustaka QRious secara On The Fly
                 let qr = new QRious({ value: file.url, size: 200, level: 'M' });
@@ -1140,43 +1140,43 @@
             ${uiTextHtml}
             ${uiAttachmentsHtml}
             
-            <!-- TEMPLATE CETAKAN YANG DIKEMASKINI: Limit max-width ke saiz A4 Desktop Sebenar -->
-            <div id="${printId}" style="display: none; background: #ffffff; color: #333333; padding: 20px 30px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; position: relative; text-align: left; vertical-align: top; width: 100%; box-sizing: border-box; overflow-wrap: break-word; word-wrap: break-word;">
+            <!-- TEMPLATE CETAKAN YANG DIKEMASKINI: Limit width ke saiz A4 Desktop Sebenar & Center -->
+            <div id="${printId}" style="display: none; background: #ffffff; color: #333333; padding: 0; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; position: relative; text-align: left; vertical-align: top; width: 100%; box-sizing: border-box; overflow-wrap: break-word; word-wrap: break-word;">
                 <!-- Decorative Header Accent -->
-                <div style="position: absolute; top: 0; left: 0; right: 0; height: 10px; background: #FFCC00;"></div>
+                <div style="width: 100%; height: 10px; background: #FFCC00; margin-bottom: 20px;"></div>
                 
                 <!-- Header -->
-                <div style="text-align: center; padding-bottom: 20px; border-bottom: 2px solid #FFCC00; margin-bottom: 30px; margin-top: 10px; max-width: 100%;">
+                <div style="text-align: center; padding-bottom: 20px; border-bottom: 2px solid #FFCC00; margin-bottom: 30px; margin-top: 10px; width: 100%;">
                     <h1 style="font-size: 26px; font-weight: 800; color: #111; margin: 0; letter-spacing: 1px;">YAYASAN SULTAN AZLAN SHAH</h1>
                     <h2 style="font-size: 16px; font-weight: 600; color: #555; margin: 5px 0 0 0; text-transform: uppercase;">SMK SUNGAI BAYO</h2>
                     <div style="display: inline-block; background: #111; color: #FFCC00; padding: 4px 15px; border-radius: 20px; font-size: 12px; font-weight: bold; margin-top: 10px;">LAPORAN DOKUMENTASI SESI PEMBELAJARAN</div>
                 </div>
 
-                <!-- Meta Info Table - Menggunakan table-layout: fixed -->
-                <table style="width: 100%; table-layout: fixed; word-wrap: break-word; border-collapse: collapse; margin-bottom: 30px; font-size: 13px; page-break-inside: avoid;">
+                <!-- Meta Info Table - Menggunakan table-layout: fixed & peratus width tetap -->
+                <table style="width: 100%; table-layout: fixed; border-collapse: collapse; margin-bottom: 30px; font-size: 13px; page-break-inside: avoid;">
                     <tr>
-                        <td style="padding: 10px 15px; border: 1px solid #e0e0e0; font-weight: bold; width: 25%; background-color: #fafafa; color: #555;">Nama Guru</td>
-                        <td style="padding: 10px 15px; border: 1px solid #e0e0e0; color: #222;">${laporan.guru}</td>
-                        <td style="padding: 10px 15px; border: 1px solid #e0e0e0; font-weight: bold; width: 20%; background-color: #fafafa; color: #555;">Kelas</td>
-                        <td style="padding: 10px 15px; border: 1px solid #e0e0e0; color: #222;">${laporan.kelas}</td>
+                        <td style="padding: 10px; border: 1px solid #e0e0e0; font-weight: bold; width: 20%; background-color: #fafafa; color: #555;">Nama Guru</td>
+                        <td style="padding: 10px; border: 1px solid #e0e0e0; color: #222; width: 30%; word-wrap: break-word;">${laporan.guru}</td>
+                        <td style="padding: 10px; border: 1px solid #e0e0e0; font-weight: bold; width: 20%; background-color: #fafafa; color: #555;">Kelas</td>
+                        <td style="padding: 10px; border: 1px solid #e0e0e0; color: #222; width: 30%; word-wrap: break-word;">${laporan.kelas}</td>
                     </tr>
                     <tr>
-                        <td style="padding: 10px 15px; border: 1px solid #e0e0e0; font-weight: bold; background-color: #fafafa; color: #555;">Tarikh / Masa</td>
-                        <td style="padding: 10px 15px; border: 1px solid #e0e0e0; color: #222;">${displayTarikh} / ${laporan.timestamp}</td>
-                        <td style="padding: 10px 15px; border: 1px solid #e0e0e0; font-weight: bold; background-color: #fafafa; color: #555;">Kehadiran Sesi</td>
-                        <td style="padding: 10px 15px; border: 1px solid #e0e0e0; color: #222;">${laporan.kehadiranSummary}</td>
+                        <td style="padding: 10px; border: 1px solid #e0e0e0; font-weight: bold; width: 20%; background-color: #fafafa; color: #555;">Tarikh / Masa</td>
+                        <td style="padding: 10px; border: 1px solid #e0e0e0; color: #222; width: 30%; word-wrap: break-word;">${displayTarikh} / ${laporan.timestamp}</td>
+                        <td style="padding: 10px; border: 1px solid #e0e0e0; font-weight: bold; width: 20%; background-color: #fafafa; color: #555;">Kehadiran Sesi</td>
+                        <td style="padding: 10px; border: 1px solid #e0e0e0; color: #222; width: 30%; word-wrap: break-word;">${laporan.kehadiranSummary}</td>
                     </tr>
                 </table>
 
                 <!-- Content Area (Ulasan) -->
-                <div style="margin-bottom: 30px; max-width: 100%;">
+                <div style="margin-bottom: 30px; width: 100%;">
                     <h3 style="font-size: 14px; font-weight: bold; color: #111; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 15px; text-transform: uppercase;">1.0 Butiran Sesi & Ulasan</h3>
                     <div style="font-size: 13px; line-height: 1.8; color: #333; text-align: justify; vertical-align: top; min-height: 60px; white-space: pre-wrap; word-break: break-word;">${textOnly || '<i>Tiada ulasan disediakan.</i>'}</div>
                 </div>
 
                 <!-- Images Area -->
                 ${pdfImagesHtml ? `
-                <div style="margin-bottom: 30px; page-break-inside: avoid; max-width: 100%; box-sizing: border-box;">
+                <div style="margin-bottom: 30px; page-break-inside: avoid; width: 100%; box-sizing: border-box;">
                     <h3 style="font-size: 14px; font-weight: bold; color: #111; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 15px; text-transform: uppercase;">2.0 Lampiran Bergambar</h3>
                     ${pdfImagesHtml}
                 </div>
@@ -1184,7 +1184,7 @@
 
                 <!-- Files Area (QR CODES) -->
                 ${pdfFilesHtml ? `
-                <div style="margin-bottom: 30px; page-break-inside: avoid; max-width: 100%; box-sizing: border-box;">
+                <div style="margin-bottom: 30px; page-break-inside: avoid; width: 100%; box-sizing: border-box;">
                     <h3 style="font-size: 14px; font-weight: bold; color: #111; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 15px; text-transform: uppercase;">3.0 Kod Imbasan Dokumen Sokongan</h3>
                     ${pdfFilesHtml}
                 </div>
@@ -1234,22 +1234,28 @@
       setLoading(true, "Memproses Imej & Menjana PDF...");
       
       const printContainer = document.createElement('div');
-      // Menetapkan CSS saiz statik 720px yang muat dengan tepat ke dalam A4 pada 96 DPI ditolak margin inci
+      // Tetapan saiz dinamik tetapi selamat untuk A4 (794px width @ 96dpi)
       printContainer.style.position = 'absolute';
-      printContainer.style.left = '0';
+      printContainer.style.left = '-9999px'; // Alih dari paparan skrin
       printContainer.style.top = '0';
-      printContainer.style.width = '720px'; 
-      printContainer.style.maxWidth = '720px'; 
+      printContainer.style.width = '794px'; 
       printContainer.style.background = '#ffffff';
       printContainer.style.zIndex = '-999';
       printContainer.style.margin = '0';
-      printContainer.style.padding = '0';
+      printContainer.style.padding = '0'; // html2pdf auto tambah margin sebagai padding
       printContainer.style.textAlign = 'left';
       printContainer.style.boxSizing = 'border-box';
 
       const clone = originalElement.cloneNode(true);
       clone.style.display = 'block'; 
       clone.id = elementId + '-clone';
+      
+      // Paksa elemen patuh kepada had margin
+      const allDescendants = clone.querySelectorAll('*');
+      allDescendants.forEach(el => {
+          el.style.maxWidth = '100%';
+          el.style.boxSizing = 'border-box';
+      });
 
       printContainer.appendChild(clone);
       document.body.appendChild(printContainer);
@@ -1263,13 +1269,14 @@
              try {
                  const res = await apiCall('getDriveImageBase64', { url: originalSrc });
                  if (res && res.success && res.base64) {
+                     img.removeAttribute('crossorigin');
                      img.onload = resolve;
                      img.onerror = resolve;
                      img.src = res.base64;
                      return; 
                  }
              } catch (e) {
-                 console.warn("Ralat Base64 Proxy untuk imej: ", e);
+                 console.warn("Ralat Base64 Proxy: ", e);
              }
           }
           if (img.complete) return resolve();
@@ -1279,15 +1286,15 @@
       });
       
       await Promise.all(imagePromises);
-      // Ekstra penangguhan bagi memastikan DOM telah render Base64 imej sepenuhnya
-      await new Promise(r => setTimeout(r, 800));
+      // Ekstra penangguhan (1.5 saat) bagi memastikan DOM render Base64 imej sepenuhnya
+      await new Promise(r => setTimeout(r, 1500));
 
-      // HTML2Canvas kini tidak diganggu flex mobile, terus berpandukan width tetap (720px)
+      // Konfigurasi html2pdf dikemaskini untuk susunan A4 selamat berpusat
       const opt = {
-        margin:       [0.4, 0.4, 0.4, 0.4],
+        margin:       [0.5, 0.5, 0.5, 0.5], // Lebihkan margin inci ke 0.5 untuk elak terkeluar border
         filename:     `Laporan_${kelas.replace(/\s+/g, '_')}_${tarikh}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true, logging: false, scrollY: 0, windowWidth: 720 },
+        html2canvas:  { scale: 2, useCORS: true, logging: false, scrollY: 0, windowWidth: 794 },
         jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' },
         pagebreak:    { mode: ['css', 'legacy'] }
       };
