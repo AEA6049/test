@@ -14,7 +14,7 @@
     // KONFIGURASI UTAMA SISTEM (Ubah suai di sini)
     // ==========================================
     const APP_CONFIG = {
-      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbxfojcDghvvhg2xS_CFuRXVCgj5Jd_afxD3pIkXhMzapY7eQeAyYkY65PPO0fXqgBEAXw/exec"
+      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbxJdoQyB8ppDuptZXR3mHlR_e84Ya-No1Mom9YVZlDiOLzzTybflwgfTZXdQWcp_dvihA/exec"
     };
   </script>
   <style>
@@ -1098,15 +1098,15 @@
          let uiAttachmentsHtml = '';
          
          if (imageMatches.length > 0) {
-             uiAttachmentsHtml += `<div class="mt-4"><p class="text-sm font-bold text-yellow-500 mb-2">Lampiran Bergambar (Kolaj)</p>`;
+             uiAttachmentsHtml += `<div class="mt-4"><p class="text-sm font-bold text-yellow-500 mb-2">Lampiran Bergambar</p>`;
              let gridClass = 'grid-cols-2';
              if (imageMatches.length === 1) gridClass = 'grid-cols-1';
              else if (imageMatches.length >= 3) gridClass = 'grid-cols-3';
 
-             uiAttachmentsHtml += `<div class="grid ${gridClass} gap-2 rounded-xl overflow-hidden border border-gray-700">`;
+             uiAttachmentsHtml += `<div class="grid ${gridClass} gap-3 rounded-xl overflow-hidden">`;
              imageMatches.forEach((img) => {
                  uiAttachmentsHtml += `
-                 <a href="${img.url}" target="_blank" class="relative block aspect-square bg-gray-800 overflow-hidden group">
+                 <a href="${img.url}" target="_blank" class="relative block aspect-square bg-gray-800 overflow-hidden group rounded-xl border border-gray-700 shadow-md">
                      <img src="${img.url}" referrerpolicy="no-referrer" onerror="loadBase64Fallback(this, '${img.url}')" alt="${img.name}" title="${img.name}" class="w-full h-full object-cover group-hover:scale-110 transition duration-300">
                  </a>`;
              });
@@ -1117,39 +1117,41 @@
              uiAttachmentsHtml += `<div class="mt-4"><p class="text-sm font-bold text-yellow-500 mb-2">Dokumen Berpaut (Imbas QR)</p>`;
              uiAttachmentsHtml += `<div class="flex flex-wrap gap-3">`;
              fileMatches.forEach((file) => {
-                 let qr = new QRious({ value: file.url, size: 100 });
+                 let qr = new QRious({ value: file.url, size: 120 });
                  let qrBase64 = qr.toDataURL();
                  uiAttachmentsHtml += `
-                 <div class="flex flex-col items-center p-2 bg-gray-800 rounded-xl border border-gray-600 hover:border-yellow-500 transition w-28 flex-shrink-0 shadow-md">
-                     <img src="${qrBase64}" alt="QR Code" class="w-20 h-20 bg-white p-1 rounded-md mb-2">
-                     <span class="text-[10px] sm:text-xs text-gray-300 w-full text-center truncate px-1" title="${file.name}">${file.name}</span>
-                     <a href="${file.url}" target="_blank" class="mt-1 text-[10px] text-yellow-500 hover:underline">Buka Fail</a>
+                 <div class="flex flex-col items-center p-3 bg-gray-800 rounded-xl border border-gray-600 hover:border-yellow-500 transition w-32 flex-shrink-0 shadow-lg">
+                     <div class="bg-white p-1 rounded-lg mb-2">
+                         <img src="${qrBase64}" alt="QR Code" class="w-24 h-24">
+                     </div>
+                     <span class="text-[10px] sm:text-xs text-gray-200 w-full text-center truncate px-1 font-semibold" title="${file.name}">${file.name}</span>
+                     <a href="${file.url}" target="_blank" class="mt-2 text-[10px] bg-yellow-500 text-black px-3 py-1 rounded-full font-bold hover:bg-yellow-400 transition w-full text-center">Buka Fail</a>
                  </div>`;
              });
              uiAttachmentsHtml += '</div></div>';
          }
 
-         let uiTextHtml = `<div class="text-sm text-gray-200 mb-4 leading-relaxed">${textOnly.replace(/\n/g, '<br>')}</div>`;
+         let uiTextHtml = `<div class="text-sm text-gray-200 mb-4 leading-relaxed bg-gray-900 p-4 rounded-xl border-l-4 border-yellow-500">${textOnly.replace(/\n/g, '<br>')}</div>`;
 
          const card = document.createElement('div');
-         card.className = 'neu-flat p-4 border border-yellow-500/20 mb-4 relative';
+         card.className = 'neu-flat p-5 border border-yellow-500/20 mb-5 relative';
          card.innerHTML = `
-            <div class="border-b border-gray-700 pb-2 mb-3 flex justify-between items-start">
+            <div class="border-b border-gray-700 pb-3 mb-4 flex justify-between items-start">
               <div>
-                <h3 class="text-lg font-bold text-yellow-500">Laporan Sesi: ${laporan.kelas}</h3>
-                <p class="text-xs text-gray-400">Guru: ${laporan.guru} | Masa: ${laporan.timestamp}</p>
-                <p class="text-xs text-gray-300 mt-1 font-semibold">Kehadiran Sesi: <span class="text-red-400">${laporan.kehadiranSummary}</span></p>
+                <h3 class="text-xl font-bold text-yellow-500 mb-1">Sesi Pelaporan: ${laporan.kelas}</h3>
+                <p class="text-xs text-gray-400 font-semibold">Guru: ${laporan.guru} <span class="mx-2">|</span> Masa: ${laporan.timestamp}</p>
+                <p class="text-sm text-gray-300 mt-2 font-bold">Kehadiran: <span class="text-red-400">${laporan.kehadiranSummary}</span></p>
               </div>
             </div>
             ${uiTextHtml}
             ${uiAttachmentsHtml}
             
-            <div class="flex gap-2 mt-6">
-              <button onclick="editLaporan(${index})" class="flex-1 bg-blue-600 text-white font-bold py-2 rounded-xl border border-blue-500/30 flex justify-center items-center gap-2 hover:bg-blue-500 transition text-sm shadow-lg">
-                <i data-lucide="edit" class="w-4 h-4"></i> Edit
+            <div class="flex gap-3 mt-6 border-t border-gray-800 pt-4">
+              <button onclick="editLaporan(${index})" class="flex-1 bg-blue-600 text-white font-bold py-3 rounded-xl border border-blue-500/30 flex justify-center items-center gap-2 hover:bg-blue-500 transition text-sm shadow-lg">
+                <i data-lucide="edit" class="w-5 h-5"></i> Edit Maklumat
               </button>
-              <button onclick="generatePDF(${index})" class="flex-1 bg-red-600 text-white font-bold py-2 rounded-xl border border-red-500/30 flex justify-center items-center gap-2 hover:bg-red-500 transition text-sm shadow-lg">
-                <i data-lucide="printer" class="w-4 h-4"></i> Cetak Laporan
+              <button onclick="generatePDF(${index})" class="flex-1 bg-red-600 text-white font-bold py-3 rounded-xl border border-red-500/30 flex justify-center items-center gap-2 hover:bg-red-500 transition text-sm shadow-lg">
+                <i data-lucide="printer" class="w-5 h-5"></i> Cetak PDF Koperat
               </button>
             </div>
          `;
@@ -1179,7 +1181,7 @@
         
         let fileMatches = [...laporan.maklumat.matchAll(/\[FILE\|(.*?)\](https?:\/\/[^\s<]+)/g)].map(m => ({name: m[1], url: m[2]}));
 
-        setLoading(true, "Menyediakan dokumen cetakan (menarik imej)...");
+        setLoading(true, "Menyediakan dokumen cetakan...");
 
         let imgHtml = '';
         if (imageMatches.length > 0) {
@@ -1191,11 +1193,11 @@
                 try {
                     let res = await apiCall('getDriveImageBase64', { url: img.url });
                     let finalSrc = (res && res.success) ? res.base64 : img.url;
-                    imgHtml += `<div style="aspect-ratio: 1; overflow: hidden; border: 1px solid #bdc3c7; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                    imgHtml += `<div style="aspect-ratio: 1; overflow: hidden; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); border: 1px solid #e5e7eb;">
                                     <img src="${finalSrc}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='https://placehold.co/400x400/eeeeee/999999?text=Gagal+Dimuatkan'">
                                 </div>`;
                 } catch(e) {
-                    imgHtml += `<div style="aspect-ratio: 1; overflow: hidden; border: 1px solid #bdc3c7; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                    imgHtml += `<div style="aspect-ratio: 1; overflow: hidden; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); border: 1px solid #e5e7eb;">
                                     <img src="${img.url}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='https://placehold.co/400x400/eeeeee/999999?text=Gagal+Dimuatkan'">
                                 </div>`;
                 }
@@ -1207,10 +1209,12 @@
         if (fileMatches.length > 0) {
             fileHtml += `<div style="display: flex; flex-wrap: wrap; gap: 20px;">`;
             fileMatches.forEach(file => {
-                let qr = new QRious({ value: file.url, size: 120 });
-                fileHtml += `<div style="text-align: center; border: 1px solid #bdc3c7; padding: 15px; border-radius: 4px; width: 150px; background: #fdfdfd; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                                <img src="${qr.toDataURL()}" style="margin: 0 auto; width: 100px; height: 100px;">
-                                <p style="font-size: 11px; word-break: break-all; margin-top: 10px; color: #34495e; font-weight: 600;">${file.name}</p>
+                let qr = new QRious({ value: file.url, size: 200 });
+                fileHtml += `<div style="text-align: center; border: 1px solid #e5e7eb; padding: 15px; border-radius: 12px; width: 140px; background: #ffffff; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+                                <div style="background: #f9fafb; padding: 10px; border-radius: 8px; margin-bottom: 10px;">
+                                    <img src="${qr.toDataURL()}" style="margin: 0 auto; width: 100px; height: 100px; display: block;">
+                                </div>
+                                <p style="font-size: 11px; word-break: break-word; margin: 0; color: #374151; font-weight: 600; line-height: 1.3;">${file.name}</p>
                              </div>`;
             });
             fileHtml += `</div>`;
@@ -1218,59 +1222,78 @@
 
         const printArea = document.getElementById('print-area');
         printArea.innerHTML = `
-            <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; padding: 20mm; max-width: 800px; margin: 0 auto; background: white; min-height: 100vh;">
-                <!-- Header Koperat -->
-                <div style="text-align: center; border-bottom: 2px solid #2c3e50; padding-bottom: 20px; margin-bottom: 30px;">
-                    <h1 style="font-size: 24px; font-weight: 800; color: #2c3e50; margin: 0; letter-spacing: 1px;">YAYASAN SULTAN AZLAN SHAH</h1>
-                    <h2 style="font-size: 16px; font-weight: 600; color: #7f8c8d; margin: 5px 0 0 0;">SMK SUNGAI BAYO</h2>
-                    <div style="margin-top: 20px; display: inline-block; background: #2c3e50; color: white; padding: 8px 20px; border-radius: 4px; font-weight: bold; letter-spacing: 1px;">DOKUMENTASI SESI PELAPORAN</div>
+            <div style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1f2937; padding: 20mm; max-width: 800px; margin: 0 auto; background: #ffffff; min-height: 100vh;">
+                
+                <!-- Header Section -->
+                <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid #FFCC00; padding-bottom: 15px; margin-bottom: 30px;">
+                    <div>
+                        <h1 style="font-size: 28px; font-weight: 800; color: #111827; margin: 0; text-transform: uppercase; letter-spacing: 0.5px;">Dokumentasi Sesi</h1>
+                        <h2 style="font-size: 16px; font-weight: 600; color: #6b7280; margin: 5px 0 0 0;">YAYASAN SULTAN AZLAN SHAH</h2>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="background: #111827; color: #FFCC00; padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: bold; display: inline-block; margin-bottom: 8px;">LAPORAN RASMI</div>
+                        <p style="margin: 0; font-size: 12px; color: #6b7280; font-weight: 600;">Dicetak pada: ${new Date().toLocaleDateString('ms-MY')}</p>
+                    </div>
                 </div>
 
-                <!-- Meta Maklumat Koperat -->
-                <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 14px;">
-                    <tr>
-                        <td style="padding: 10px; border: 1px solid #ddd; background: #f8f9fa; font-weight: bold; width: 20%;">Tarikh</td>
-                        <td style="padding: 10px; border: 1px solid #ddd; width: 30%;">${displayTarikh}</td>
-                        <td style="padding: 10px; border: 1px solid #ddd; background: #f8f9fa; font-weight: bold; width: 20%;">Masa Laporan</td>
-                        <td style="padding: 10px; border: 1px solid #ddd; width: 30%;">${laporan.timestamp}</td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 10px; border: 1px solid #ddd; background: #f8f9fa; font-weight: bold;">Nama Guru</td>
-                        <td style="padding: 10px; border: 1px solid #ddd;">${laporan.guru}</td>
-                        <td style="padding: 10px; border: 1px solid #ddd; background: #f8f9fa; font-weight: bold;">Kelas</td>
-                        <td style="padding: 10px; border: 1px solid #ddd;">${laporan.kelas}</td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 10px; border: 1px solid #ddd; background: #f8f9fa; font-weight: bold;">Status Kehadiran</td>
-                        <td colspan="3" style="padding: 10px; border: 1px solid #ddd; font-weight: bold; color: #e74c3c;">${laporan.kehadiranSummary}</td>
-                    </tr>
-                </table>
+                <!-- Meta Information Card -->
+                <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; margin-bottom: 30px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div>
+                        <p style="font-size: 11px; text-transform: uppercase; color: #9ca3af; font-weight: 700; margin: 0 0 4px 0;">Tarikh Laporan</p>
+                        <p style="font-size: 15px; color: #111827; font-weight: 600; margin: 0;">${displayTarikh} <span style="color: #6b7280; font-weight: 400; font-size: 13px;">(${laporan.timestamp})</span></p>
+                    </div>
+                    <div>
+                        <p style="font-size: 11px; text-transform: uppercase; color: #9ca3af; font-weight: 700; margin: 0 0 4px 0;">Guru Bertugas</p>
+                        <p style="font-size: 15px; color: #111827; font-weight: 600; margin: 0;">${laporan.guru}</p>
+                    </div>
+                    <div>
+                        <p style="font-size: 11px; text-transform: uppercase; color: #9ca3af; font-weight: 700; margin: 0 0 4px 0;">Kelas / Sesi</p>
+                        <p style="font-size: 15px; color: #111827; font-weight: 600; margin: 0;">${laporan.kelas}</p>
+                    </div>
+                    <div>
+                        <p style="font-size: 11px; text-transform: uppercase; color: #9ca3af; font-weight: 700; margin: 0 0 4px 0;">Status Kehadiran</p>
+                        <p style="font-size: 15px; color: #b91c1c; font-weight: 700; margin: 0;">${laporan.kehadiranSummary}</p>
+                    </div>
+                </div>
 
-                <!-- Ulasan Sesi -->
-                <div style="margin-bottom: 30px;">
-                    <h3 style="font-size: 16px; font-weight: bold; color: #2c3e50; border-bottom: 1px solid #ecf0f1; padding-bottom: 8px; margin-bottom: 15px;">1.0 Ulasan Sesi</h3>
-                    <div style="padding: 15px; background: #fdfdfd; border: 1px solid #eee; border-radius: 4px; font-size: 14px; line-height: 1.6; white-space: pre-wrap;">${textOnly || 'Tiada ulasan disediakan.'}</div>
+                <!-- Ulasan Section -->
+                <div style="margin-bottom: 35px;">
+                    <h3 style="font-size: 16px; font-weight: 700; color: #111827; display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                        <span style="width: 24px; height: 24px; background: #FFCC00; color: #000; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 12px;">1</span> Ulasan Sesi
+                    </h3>
+                    <div style="background: #ffffff; border-left: 4px solid #FFCC00; padding: 16px 20px; font-size: 14px; line-height: 1.7; color: #374151; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border-radius: 0 8px 8px 0; white-space: pre-wrap;">${textOnly || 'Tiada ulasan disediakan bagi sesi ini.'}</div>
                 </div>
 
                 <!-- Lampiran Gambar -->
-                ${imgHtml ? `<div style="margin-bottom: 30px;"><h3 style="font-size: 16px; font-weight: bold; color: #2c3e50; border-bottom: 1px solid #ecf0f1; padding-bottom: 8px; margin-bottom: 15px;">2.0 Lampiran Bergambar</h3>${imgHtml}</div>` : ''}
+                ${imgHtml ? `<div style="margin-bottom: 35px;">
+                    <h3 style="font-size: 16px; font-weight: 700; color: #111827; display: flex; align-items: center; gap: 8px; margin-bottom: 15px;">
+                        <span style="width: 24px; height: 24px; background: #FFCC00; color: #000; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 12px;">2</span> Lampiran Visual
+                    </h3>
+                    ${imgHtml}
+                </div>` : ''}
 
                 <!-- Pautan Fail (QR) -->
-                ${fileHtml ? `<div style="margin-bottom: 30px;"><h3 style="font-size: 16px; font-weight: bold; color: #2c3e50; border-bottom: 1px solid #ecf0f1; padding-bottom: 8px; margin-bottom: 15px;">3.0 Dokumen Sokongan (Imbas Kod QR)</h3>${fileHtml}</div>` : ''}
+                ${fileHtml ? `<div style="margin-bottom: 35px;">
+                    <h3 style="font-size: 16px; font-weight: 700; color: #111827; display: flex; align-items: center; gap: 8px; margin-bottom: 15px;">
+                        <span style="width: 24px; height: 24px; background: #FFCC00; color: #000; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 12px;">3</span> Dokumen Sokongan
+                    </h3>
+                    <p style="font-size: 12px; color: #6b7280; margin-top: -10px; margin-bottom: 15px;">Sila imbas Kod QR di bawah menggunakan telefon pintar untuk memuat turun atau melihat fail yang dilampirkan.</p>
+                    ${fileHtml}
+                </div>` : ''}
 
                 <!-- Ruangan Tandatangan -->
-                <div style="margin-top: 60px; display: flex; justify-content: space-between; page-break-inside: avoid;">
-                    <div style="width: 40%; text-align: center;">
-                        <p style="font-size: 14px; color: #7f8c8d; margin-bottom: 60px;">Disediakan oleh,</p>
-                        <div style="border-bottom: 1px solid #333; margin-bottom: 5px;"></div>
-                        <p style="font-weight: bold; font-size: 14px; margin: 0;">${laporan.guru}</p>
-                        <p style="font-size: 12px; color: #7f8c8d; margin: 0;">Guru Sesi Akademik</p>
+                <div style="margin-top: 50px; padding-top: 30px; border-top: 1px dashed #d1d5db; display: flex; justify-content: space-around; page-break-inside: avoid;">
+                    <div style="width: 200px; text-align: center;">
+                        <p style="font-size: 12px; color: #6b7280; margin-bottom: 60px;">Disediakan oleh,</p>
+                        <div style="border-bottom: 1px solid #111827; margin-bottom: 8px;"></div>
+                        <p style="font-weight: 700; font-size: 14px; margin: 0; color: #111827;">${laporan.guru}</p>
+                        <p style="font-size: 11px; color: #6b7280; margin: 2px 0 0 0;">Guru / Fasilitator Sesi</p>
                     </div>
-                    <div style="width: 40%; text-align: center;">
-                        <p style="font-size: 14px; color: #7f8c8d; margin-bottom: 60px;">Disemak oleh,</p>
-                        <div style="border-bottom: 1px solid #333; margin-bottom: 5px;"></div>
-                        <p style="font-weight: bold; font-size: 14px; margin: 0;">&nbsp;</p>
-                        <p style="font-size: 12px; color: #7f8c8d; margin: 0;">Penyelaras / Pentadbir</p>
+                    <div style="width: 200px; text-align: center;">
+                        <p style="font-size: 12px; color: #6b7280; margin-bottom: 60px;">Disemak oleh,</p>
+                        <div style="border-bottom: 1px solid #111827; margin-bottom: 8px;"></div>
+                        <p style="font-weight: 700; font-size: 14px; margin: 0; color: #111827;">&nbsp;</p>
+                        <p style="font-size: 11px; color: #6b7280; margin: 2px 0 0 0;">Pengesahan Pentadbir</p>
                     </div>
                 </div>
             </div>
