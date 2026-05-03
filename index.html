@@ -16,7 +16,7 @@
     // KONFIGURASI UTAMA SISTEM (Ubah suai di sini)
     // ==========================================
     const APP_CONFIG = {
-      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbzlkr05Xtyngk4BWr2MVqWa41j9PCVZot9TcaxQjU3SEW-lc2sWNqAw31ksvWQocPTkQQ/exec"
+      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbz2RCEUB-45zouoE7NMh6i69e8ngCQtiumRt2rJJc7FG_gN6n-H0AkpcsxmOYKLy2bapA/exec"
     };
   </script>
   <style>
@@ -264,7 +264,7 @@
       <div class="space-y-4 text-sm text-gray-300">
         <p>⭐ <b>Prestasi & Integriti:</b> Sistem markah (guru & murid) HANYA sah untuk hari semasa sahaja. Kemaskini hari lepas hanya menyimpan rekod (0 point).</p>
         <p>🗺️ <b>Pemetaan GPS:</b> Koordinat GPS disimpan secara tersembunyi ke dalam Pangkalan Data untuk simpanan pentadbir.</p>
-        <p>📄 <b>Laporan & Cetakan:</b> Laporan disusun kemas (Top Aligned) dengan fungsi automatik skala untuk elak isu terkeluar margin. Dokumen bertukar kepada bentuk kod QR.</p>
+        <p>📄 <b>Laporan & Cetakan:</b> Laporan disusun kemas dengan kelebaran tetapan A4 sebenar. Gambar Google Drive dipintasi dengan selamat (tiada Ralat 403).</p>
         <p>📝 <b>Kemaskini Rekod:</b> Laporan yang sudah dihantar kini boleh diedit semula bersama rekod kehadiran.</p>
       </div>
     </div>
@@ -349,6 +349,22 @@
           throw new Error('Ralat API: ' + e.message);
         }
       }
+    }
+
+    // TAMPUNGAN AUTOMATIK IMEJ BERMASALAH (403 FORBIDDEN)
+    async function loadBase64Fallback(img, url) {
+        if (img.dataset.fallback === "true") return;
+        img.dataset.fallback = "true";
+        try {
+            const res = await apiCall('getDriveImageBase64', { url: url });
+            if (res && res.success && res.base64) {
+                img.src = res.base64;
+            } else {
+                img.src = "https://placehold.co/150x150/1a1a1a/FFCC00?text=Imej+Gagal";
+            }
+        } catch(e) {
+            img.src = "https://placehold.co/150x150/1a1a1a/FFCC00?text=Imej+Gagal";
+        }
     }
 
     function getTodayString() {
@@ -1050,9 +1066,10 @@
          if (imageMatches.length > 0 || fileMatches.length > 0) {
              uiAttachmentsHtml = '<div class="mt-4 flex flex-wrap gap-3">';
              imageMatches.forEach((img) => {
+                 // Tambahan referrerpolicy dan sandaran panggil proxy jikalau 403 Forbidden
                  uiAttachmentsHtml += `
                  <a href="${img.url}" target="_blank" class="relative flex flex-col items-center justify-center bg-gray-800 rounded-xl border border-gray-600 hover:border-yellow-500 transition w-24 h-24 sm:w-32 sm:h-32 overflow-hidden group shadow-md flex-shrink-0">
-                     <img src="${img.url}" alt="${img.name}" title="${img.name}" class="w-full h-full object-cover group-hover:scale-110 transition duration-300">
+                     <img src="${img.url}" referrerpolicy="no-referrer" onerror="loadBase64Fallback(this, '${img.url}')" alt="${img.name}" title="${img.name}" class="w-full h-full object-cover group-hover:scale-110 transition duration-300">
                  </a>`;
              });
              fileMatches.forEach((file) => {
@@ -1076,7 +1093,7 @@
 
          let uiTextHtml = `<div class="text-sm text-gray-200 mb-4 leading-relaxed">${textOnly.replace(/\n/g, '<br>')}</div>`;
 
-         // STRUKTUR HTML SOLID UNTUK CETAKAN PDF (Top-Aligned, Responsive CSS & QR)
+         // STRUKTUR HTML SOLID UNTUK CETAKAN PDF
          let pdfImagesHtml = '';
          if (imageMatches.length > 0) {
             let collW = imageMatches.length === 1 ? '90%' : '45%';
@@ -1123,8 +1140,8 @@
             ${uiTextHtml}
             ${uiAttachmentsHtml}
             
-            <!-- TEMPLATE CETAKAN YANG DIKEMASKINI: Max-width 100%, Word-wrap Fix -->
-            <div id="${printId}" style="display: none; background: #ffffff; color: #333333; padding: 20px 30px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; position: relative; text-align: left; vertical-align: top; width: 100%; max-width: 100%; box-sizing: border-box; overflow-wrap: break-word; word-wrap: break-word;">
+            <!-- TEMPLATE CETAKAN YANG DIKEMASKINI: Limit max-width ke saiz A4 Desktop Sebenar -->
+            <div id="${printId}" style="display: none; background: #ffffff; color: #333333; padding: 20px 30px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; position: relative; text-align: left; vertical-align: top; width: 100%; box-sizing: border-box; overflow-wrap: break-word; word-wrap: break-word;">
                 <!-- Decorative Header Accent -->
                 <div style="position: absolute; top: 0; left: 0; right: 0; height: 10px; background: #FFCC00;"></div>
                 
@@ -1135,7 +1152,7 @@
                     <div style="display: inline-block; background: #111; color: #FFCC00; padding: 4px 15px; border-radius: 20px; font-size: 12px; font-weight: bold; margin-top: 10px;">LAPORAN DOKUMENTASI SESI PEMBELAJARAN</div>
                 </div>
 
-                <!-- Meta Info Table - Added table-layout: fixed to prevent overflow -->
+                <!-- Meta Info Table - Menggunakan table-layout: fixed -->
                 <table style="width: 100%; table-layout: fixed; word-wrap: break-word; border-collapse: collapse; margin-bottom: 30px; font-size: 13px; page-break-inside: avoid;">
                     <tr>
                         <td style="padding: 10px 15px; border: 1px solid #e0e0e0; font-weight: bold; width: 25%; background-color: #fafafa; color: #555;">Nama Guru</td>
@@ -1217,12 +1234,12 @@
       setLoading(true, "Memproses Imej & Menjana PDF...");
       
       const printContainer = document.createElement('div');
-      // Menetapkan CSS absolut dan format yang lebih fleksibel untuk elak overflow
+      // Menetapkan CSS saiz statik 720px yang muat dengan tepat ke dalam A4 pada 96 DPI ditolak margin inci
       printContainer.style.position = 'absolute';
       printContainer.style.left = '0';
       printContainer.style.top = '0';
-      printContainer.style.width = '800px'; 
-      printContainer.style.maxWidth = '100%'; 
+      printContainer.style.width = '720px'; 
+      printContainer.style.maxWidth = '720px'; 
       printContainer.style.background = '#ffffff';
       printContainer.style.zIndex = '-999';
       printContainer.style.margin = '0';
@@ -1246,7 +1263,6 @@
              try {
                  const res = await apiCall('getDriveImageBase64', { url: originalSrc });
                  if (res && res.success && res.base64) {
-                     // Assign onload SEBELUM menukar src untuk kepastian mutlak asynchronus
                      img.onload = resolve;
                      img.onerror = resolve;
                      img.src = res.base64;
@@ -1266,12 +1282,12 @@
       // Ekstra penangguhan bagi memastikan DOM telah render Base64 imej sepenuhnya
       await new Promise(r => setTimeout(r, 800));
 
-      // Margin dinaikkan ke 0.4 inchi (~1cm) dan pagebreak logic ditambah untuk responsif A4 tanpa terpotong luar margin
+      // HTML2Canvas kini tidak diganggu flex mobile, terus berpandukan width tetap (720px)
       const opt = {
         margin:       [0.4, 0.4, 0.4, 0.4],
         filename:     `Laporan_${kelas.replace(/\s+/g, '_')}_${tarikh}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true, logging: false, scrollY: 0, windowWidth: 800 },
+        html2canvas:  { scale: 2, useCORS: true, logging: false, scrollY: 0, windowWidth: 720 },
         jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' },
         pagebreak:    { mode: ['css', 'legacy'] }
       };
