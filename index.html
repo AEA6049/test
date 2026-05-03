@@ -17,7 +17,7 @@
     // KONFIGURASI UTAMA SISTEM (Ubah suai di sini)
     // ==========================================
     const APP_CONFIG = {
-      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbwVCVsS6zMjfVF_ywsR11zinJDIyWHhj2EU5RwvS8k7gwt_GsLCeeKWIsCz6m4ETbBS3A/exec"
+      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbyUIjxsKxxQSdV6u9F61WGSJgJL9UqoiNHmH2r1ah9lWXAn75YjOPJflY9zmfmDfsPYkQ/exec"
     };
   </script>
   <style>
@@ -350,8 +350,8 @@
     let reportFileQueue = []; 
     let editingReportState = null;
     
-    let tempMuridImage = null; // Menyimpan data base64 gambar semasa edit/tambah
-    let cropper = null; // Objek cropper.js
+    let tempMuridImage = null; 
+    let cropper = null; 
 
     function showCustomModal(message, isConfirm = false, confirmCallback = null) {
         const modal = document.getElementById('custom-modal');
