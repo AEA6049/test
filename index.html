@@ -9,14 +9,12 @@
   <script src="https://unpkg.com/lucide@latest"></script>
   <!-- Pustaka QRious untuk Jana QR Code Automatik -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
-  <!-- Pustaka HTML2PDF untuk Jana Laporan PDF -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <script>
     // ==========================================
     // KONFIGURASI UTAMA SISTEM (Ubah suai di sini)
     // ==========================================
     const APP_CONFIG = {
-      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbxGMNMzMhjSZpQIgQHpvC4--q4ffwxj6d7KKARvqPRZjvyRPa-8D1Kc1fc7YaDB5DcelA/exec"
+      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbxJdoQyB8ppDuptZXR3mHlR_e84Ya-No1Mom9YVZlDiOLzzTybflwgfTZXdQWcp_dvihA/exec"
     };
   </script>
   <style>
@@ -263,7 +261,7 @@
       <div class="space-y-4 text-sm text-gray-300">
         <p>⭐ <b>Prestasi & Integriti:</b> Sistem markah (guru & murid) HANYA sah untuk hari semasa sahaja. Kemaskini hari lepas hanya menyimpan rekod (0 point).</p>
         <p>🗺️ <b>Pemetaan GPS:</b> Koordinat GPS disimpan secara tersembunyi ke dalam Pangkalan Data untuk simpanan pentadbir.</p>
-        <p>📄 <b>Dokumentasi Berpusat:</b> Laporan disusun kemas. Gambar Google Drive dipintasi dengan selamat (tiada Ralat 403).</p>
+        <p>📄 <b>Dokumentasi Berpusat:</b> Laporan disusun kemas. Cetakan eksklusif dalam bentuk PDF memelihara kualiti vektor teks.</p>
         <p>📝 <b>Kemaskini Rekod:</b> Laporan yang sudah dihantar kini boleh diedit semula bersama rekod kehadiran.</p>
       </div>
     </div>
@@ -1114,7 +1112,7 @@
                 <i data-lucide="edit" class="w-4 h-4"></i> Edit
               </button>
               <button onclick="generatePDF(${index})" class="flex-1 bg-red-600 text-white font-bold py-2 rounded-xl border border-red-500/30 flex justify-center items-center gap-2 hover:bg-red-500 transition text-sm shadow-lg">
-                <i data-lucide="file-down" class="w-4 h-4"></i> Cetak PDF
+                <i data-lucide="printer" class="w-4 h-4"></i> Cetak / Jana PDF
               </button>
             </div>
          `;
@@ -1146,126 +1144,243 @@
 
         let imgHtml = '';
         if (imageMatches.length > 0) {
-            imgHtml = `<div style="margin-top: 15px;"><h4 style="font-size: 14px; font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 10px;">Lampiran Bergambar (Kolaj)</h4>`;
-            let gridCols = imageMatches.length > 1 ? 'repeat(2, 1fr)' : '1fr';
-            if(imageMatches.length >= 4) gridCols = 'repeat(3, 1fr)';
-            imgHtml += `<div style="display: grid; grid-template-columns: ${gridCols}; gap: 5px;">`;
+            imgHtml = `<div class="section"><div class="section-title">Lampiran Bergambar</div>`;
+            imgHtml += `<div class="img-grid">`;
             imageMatches.forEach(img => {
-                imgHtml += `<div style="aspect-ratio: 1; overflow: hidden; border: 1px solid #eee; border-radius: 4px;">
-                                <img src="${img.url}" crossorigin="anonymous" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='https://placehold.co/400x400/eeeeee/999999?text=Gagal+Dimuatkan'">
-                            </div>`;
+                imgHtml += `<img src="${img.url}" crossorigin="anonymous" alt="${img.name}" onerror="this.src='https://placehold.co/400x400/eeeeee/999999?text=Gambar+Gagal'">`;
             });
             imgHtml += `</div></div>`;
         }
 
         let fileHtml = '';
         if (fileMatches.length > 0) {
-            fileHtml = `<div style="margin-top: 15px;"><h4 style="font-size: 14px; font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 10px;">Pautan Fail Berdokumen (Imbas QR)</h4>
-            <div style="display: flex; flex-wrap: wrap; gap: 15px;">`;
+            fileHtml = `<div class="section"><div class="section-title">Pautan Dokumen (Imbas Kod QR)</div>
+            <div class="qr-grid">`;
             fileMatches.forEach(file => {
-                let qr = new QRious({ value: file.url, size: 120 });
-                fileHtml += `<div style="text-align: center; border: 1px solid #eee; padding: 10px; border-radius: 8px; width: 140px;">
-                                <img src="${qr.toDataURL()}" style="margin: 0 auto;">
-                                <p style="font-size: 10px; word-break: break-all; margin-top: 5px; color: #333;">${file.name}</p>
+                let qr = new QRious({ value: file.url, size: 150 });
+                fileHtml += `<div class="qr-box">
+                                <img src="${qr.toDataURL()}" alt="QR Code">
+                                <div class="qr-text">${file.name}</div>
                              </div>`;
             });
             fileHtml += `</div></div>`;
         }
 
-        const container = document.createElement('div');
-        // FIX: Remove negative positioning that caused html2canvas to fail capturing the element.
-        container.style.position = 'absolute';
-        container.style.left = '0';
-        container.style.top = '0';
-        container.style.zIndex = '-1000';
-        container.style.opacity = '0.01';
-        container.style.padding = '30px';
-        container.style.fontFamily = 'Arial, sans-serif';
-        container.style.color = '#000';
-        container.style.backgroundColor = '#FFF';
-        container.style.width = '800px';
-
-        container.innerHTML = `
-            <div style="text-align: center; margin-bottom: 20px;">
-                <h1 style="font-size: 18px; font-weight: bold; text-transform: uppercase; color: #000; margin: 0;">YAYASAN SULTAN AZLAN SHAH</h1>
-                <h2 style="font-size: 14px; font-weight: bold; color: #444; margin: 5px 0;">SMK SUNGAI BAYO</h2>
-                <h3 style="font-size: 16px; font-weight: bold; margin-top: 15px; border-bottom: 2px solid #000; display: inline-block; padding-bottom: 5px;">LAPORAN SESI & DOKUMENTASI</h3>
-            </div>
-
-            <div style="display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 12px; background: #f9f9f9; padding: 10px; border-radius: 8px; border: 1px solid #eee;">
-                <div>
-                    <p style="margin: 3px 0;"><strong>Tarikh:</strong> ${displayTarikh}</p>
-                    <p style="margin: 3px 0;"><strong>Masa Laporan:</strong> ${laporan.timestamp}</p>
-                    <p style="margin: 3px 0;"><strong>Nama Guru:</strong> ${laporan.guru}</p>
-                    <p style="margin: 3px 0;"><strong>Kelas:</strong> ${laporan.kelas}</p>
-                </div>
-                <div style="text-align: right;">
-                    <p style="margin: 3px 0;"><strong>Status Kehadiran Sesi:</strong></p>
-                    <p style="margin: 3px 0; color: #d32f2f; font-weight: bold; font-size: 14px;">${laporan.kehadiranSummary}</p>
-                </div>
-            </div>
-
-            <div style="margin-bottom: 15px;">
-                <h4 style="font-size: 14px; font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 10px;">Ulasan Sesi</h4>
-                <p style="font-size: 12px; line-height: 1.6; white-space: pre-wrap; color: #222;">${textOnly || '<i>Tiada ulasan disediakan.</i>'}</p>
-            </div>
-
-            ${imgHtml}
-            ${fileHtml}
-
-            <div style="margin-top: 30px; border-top: 1px dashed #ccc; padding-top: 10px; text-align: center; font-size: 10px; color: #777;">
-                Janaan Automatik oleh Sistem PWA Yayasan Sultan Azlan Shah
-            </div>
-        `;
-
-        document.body.appendChild(container);
-        
-        const opt = {
-            margin:       [10, 10, 10, 10],
-            filename:     `Laporan_${laporan.kelas}_${displayTarikh.replace(/\//g, '')}.pdf`,
-            image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2, useCORS: true, logging: false },
-            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
-
-        setLoading(true, "Menjana Fail PDF...");
-        
-        // FIX: Ensure images are fully loaded before rendering the PDF to avoid blank pages.
-        const images = container.querySelectorAll('img');
-        let loadedCount = 0;
-        const totalImages = images.length;
-
-        const triggerPDF = () => {
-            html2pdf().from(container).set(opt).save().then(() => {
-                document.body.removeChild(container);
-                setLoading(false);
-            }).catch(e => {
-                console.error("PDF Error:", e);
-                document.body.removeChild(container);
-                setLoading(false);
-                customAlert("Gagal menjana PDF. Sila pastikan capaian internet stabil.");
-            });
-        };
-
-        if (totalImages === 0) {
-            triggerPDF();
-        } else {
-            Array.from(images).forEach(img => {
-                if (img.complete) {
-                    loadedCount++;
-                    if (loadedCount === totalImages) triggerPDF();
-                } else {
-                    img.onload = () => {
-                        loadedCount++;
-                        if (loadedCount === totalImages) triggerPDF();
-                    };
-                    img.onerror = () => {
-                        loadedCount++;
-                        if (loadedCount === totalImages) triggerPDF();
-                    };
-                }
-            });
+        const printWindow = window.open('', '_blank');
+        if(!printWindow) {
+            customAlert("Gagal membuka tetingkap cetakan. Sila benarkan 'pop-ups' untuk peranti / pelayar anda.");
+            return;
         }
+
+        const htmlContent = `
+        <!DOCTYPE html>
+        <html lang="ms">
+        <head>
+            <meta charset="UTF-8">
+            <title>Laporan_Sesi_${laporan.kelas}_${displayTarikh.replace(/\//g, '')}</title>
+            <style>
+                @page { size: A4 portrait; margin: 20mm; }
+                body { 
+                    font-family: 'Arial', sans-serif; 
+                    color: #1a1a1a; 
+                    line-height: 1.5;
+                    margin: 0;
+                    padding: 0;
+                    background: #fff;
+                }
+                .container { max-width: 800px; margin: 0 auto; }
+                .header { 
+                    text-align: center; 
+                    border-bottom: 3px solid #FFCC00; 
+                    padding-bottom: 15px; 
+                    margin-bottom: 25px; 
+                }
+                .org-name { 
+                    font-size: 22px; 
+                    font-weight: 900; 
+                    color: #000; 
+                    margin: 0;
+                    letter-spacing: 1px;
+                }
+                .sub-org { 
+                    font-size: 16px; 
+                    font-weight: bold; 
+                    color: #444; 
+                    margin: 5px 0 10px 0; 
+                }
+                .doc-title {
+                    font-size: 18px;
+                    font-weight: bold;
+                    display: inline-block;
+                    background: #222;
+                    color: #FFCC00;
+                    padding: 5px 15px;
+                    border-radius: 4px;
+                }
+                .meta-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin-bottom: 25px;
+                }
+                .meta-table td {
+                    padding: 8px 12px;
+                    border: 1px solid #ddd;
+                    font-size: 13px;
+                }
+                .meta-table .label {
+                    background-color: #f4f4f4;
+                    font-weight: bold;
+                    width: 20%;
+                }
+                .status-hadir {
+                    font-weight: bold;
+                    color: #d32f2f;
+                    font-size: 14px;
+                }
+                .section { margin-bottom: 25px; page-break-inside: avoid; }
+                .section-title {
+                    font-size: 15px;
+                    font-weight: bold;
+                    border-bottom: 2px solid #eee;
+                    padding-bottom: 5px;
+                    margin-bottom: 15px;
+                    color: #000;
+                    text-transform: uppercase;
+                }
+                .ulasan-content {
+                    font-size: 13px;
+                    text-align: justify;
+                    white-space: pre-wrap;
+                    background: #fafafa;
+                    padding: 15px;
+                    border-radius: 5px;
+                    border: 1px solid #eee;
+                }
+                .img-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                    gap: 15px;
+                }
+                .img-grid img {
+                    width: 100%;
+                    height: 200px;
+                    object-fit: cover;
+                    border-radius: 6px;
+                    border: 1px solid #ccc;
+                    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+                }
+                .qr-grid {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 20px;
+                }
+                .qr-box {
+                    text-align: center;
+                    border: 1px solid #eee;
+                    padding: 15px;
+                    border-radius: 8px;
+                    width: 130px;
+                    background: #f9f9f9;
+                }
+                .qr-box img {
+                    width: 100px;
+                    height: 100px;
+                    margin: 0 auto;
+                }
+                .qr-text {
+                    font-size: 11px;
+                    word-break: break-all;
+                    margin-top: 8px;
+                    font-weight: bold;
+                    color: #333;
+                }
+                .footer {
+                    margin-top: 40px;
+                    text-align: center;
+                    font-size: 10px;
+                    color: #666;
+                    border-top: 1px solid #eee;
+                    padding-top: 15px;
+                }
+                @media print {
+                    .meta-table .label { background-color: #f4f4f4 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                    .ulasan-content { background: #fafafa !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                    .doc-title { background: #222 !important; color: #FFCC00 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1 class="org-name">YAYASAN SULTAN AZLAN SHAH</h1>
+                    <h2 class="sub-org">SMK SUNGAI BAYO</h2>
+                    <div class="doc-title">LAPORAN SESI & DOKUMENTASI</div>
+                </div>
+
+                <table class="meta-table">
+                    <tr>
+                        <td class="label">Tarikh Sesi</td>
+                        <td>${displayTarikh}</td>
+                        <td class="label">Masa Laporan</td>
+                        <td>${laporan.timestamp}</td>
+                    </tr>
+                    <tr>
+                        <td class="label">Nama Guru</td>
+                        <td>${laporan.guru}</td>
+                        <td class="label">Kelas Terlibat</td>
+                        <td>${laporan.kelas}</td>
+                    </tr>
+                    <tr>
+                        <td class="label">Kehadiran</td>
+                        <td colspan="3" class="status-hadir">${laporan.kehadiranSummary}</td>
+                    </tr>
+                </table>
+
+                <div class="section">
+                    <div class="section-title">Ulasan / Nota Sesi</div>
+                    <div class="ulasan-content">${textOnly || '<i>Tiada ulasan disediakan.</i>'}</div>
+                </div>
+
+                ${imgHtml}
+                ${fileHtml}
+
+                <div class="footer">
+                    Dokumen ini dijana secara automatik oleh Sistem PWA Yayasan Sultan Azlan Shah pada ${new Date().toLocaleString('ms-MY')}.
+                </div>
+            </div>
+
+            <script>
+                // Tunggu semua imej selesai dimuatkan sebelum memanggil perintah cetak (Print to PDF)
+                window.onload = function() {
+                    let images = document.getElementsByTagName('img');
+                    let loaded = 0;
+                    if(images.length === 0) {
+                        setTimeout(() => { window.print(); }, 500);
+                    } else {
+                        for(let i = 0; i < images.length; i++) {
+                            if(images[i].complete) {
+                                loaded++;
+                                if(loaded === images.length) setTimeout(() => { window.print(); }, 500);
+                            } else {
+                                images[i].addEventListener('load', () => {
+                                    loaded++;
+                                    if(loaded === images.length) setTimeout(() => { window.print(); }, 500);
+                                });
+                                images[i].addEventListener('error', () => {
+                                    loaded++;
+                                    if(loaded === images.length) setTimeout(() => { window.print(); }, 500);
+                                });
+                            }
+                        }
+                    }
+                }
+            </script>
+        </body>
+        </html>`;
+
+        printWindow.document.open();
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
     }
 
     function setLoading(show, text = "Memuat...") {
