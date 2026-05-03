@@ -16,7 +16,7 @@
     // KONFIGURASI UTAMA SISTEM (Ubah suai di sini)
     // ==========================================
     const APP_CONFIG = {
-      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbwwjm69wd-xhbrFyLU4OIf8D1mYKMHeATFuJR1T12fpsghbfJC6rNpeo-6ENtbrXZ_Uag/exec"
+      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbw9fn55e_a1V6_NL2D4-AHrHWOkbnViDPZx1zFSLlcNmtVyugnIjxwS06y46SG_cYiUaw/exec"
     };
   </script>
   <style>
@@ -1080,7 +1080,7 @@
          let pdfImagesHtml = '';
          if (imageMatches.length > 0) {
             let collW = imageMatches.length === 1 ? '90%' : '45%';
-            pdfImagesHtml = `<div style="text-align: center; font-size: 0; margin: 0 auto;">`;
+            pdfImagesHtml = `<div style="text-align: center; font-size: 0; margin: 0 auto; page-break-inside: avoid;">`;
             imageMatches.forEach(img => {
                pdfImagesHtml += `
                   <div style="display: inline-block; width: ${collW}; margin: 10px 2%; border: 1px solid #eaeaea; padding: 8px; box-sizing: border-box; background: #fafafa; vertical-align: top; border-radius: 4px;">
@@ -1094,7 +1094,7 @@
 
          let pdfFilesHtml = '';
          if (fileMatches.length > 0) {
-            pdfFilesHtml = `<div style="text-align: center; font-size: 0; margin: 0 auto;">`;
+            pdfFilesHtml = `<div style="text-align: center; font-size: 0; margin: 0 auto; page-break-inside: avoid;">`;
             fileMatches.forEach((file) => {
                 // Jana QR kod dengan pustaka QRious secara On The Fly
                 let qr = new QRious({ value: file.url, size: 200, level: 'M' });
@@ -1124,7 +1124,7 @@
             ${uiAttachmentsHtml}
             
             <!-- TEMPLATE CETAKAN YANG DIKEMASKINI: Top Align, QR Code, dan Tiada Blank Page -->
-            <div id="${printId}" style="display: none; background: #ffffff; color: #333333; padding: 20px 40px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; position: relative; text-align: left; vertical-align: top; width: 100%; box-sizing: border-box;">
+            <div id="${printId}" style="display: none; background: #ffffff; color: #333333; padding: 20px 30px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; position: relative; text-align: left; vertical-align: top; width: 100%; box-sizing: border-box;">
                 <!-- Decorative Header Accent -->
                 <div style="position: absolute; top: 0; left: 0; right: 0; height: 10px; background: #FFCC00;"></div>
                 
@@ -1136,7 +1136,7 @@
                 </div>
 
                 <!-- Meta Info Table -->
-                <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 13px;">
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 13px; page-break-inside: avoid;">
                     <tr>
                         <td style="padding: 10px 15px; border: 1px solid #e0e0e0; font-weight: bold; width: 25%; background-color: #fafafa; color: #555;">Nama Guru</td>
                         <td style="padding: 10px 15px; border: 1px solid #e0e0e0; color: #222;">${laporan.guru}</td>
@@ -1221,7 +1221,7 @@
       printContainer.style.position = 'absolute';
       printContainer.style.left = '0';
       printContainer.style.top = '0';
-      printContainer.style.width = '800px'; 
+      printContainer.style.width = '794px'; // 794px is exactly A4 width at 96 DPI
       printContainer.style.background = '#ffffff';
       printContainer.style.zIndex = '-999';
       printContainer.style.margin = '0';
@@ -1265,8 +1265,9 @@
       await new Promise(r => setTimeout(r, 800));
 
       // Menggunakan scrollY: 0 untuk memastikan tiada anjakan sewaktu mencetak
+      // Menetapkan margin kepada 0.1 inci mengikut kehendak pengguna
       const opt = {
-        margin:       [0.4, 0.4, 0.4, 0.4],
+        margin:       [0.1, 0.1, 0.1, 0.1],
         filename:     `Laporan_${kelas.replace(/\s+/g, '_')}_${tarikh}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
         html2canvas:  { scale: 2, useCORS: true, logging: false, scrollY: 0, windowWidth: 800 },
