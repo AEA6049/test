@@ -14,7 +14,7 @@
     // KONFIGURASI UTAMA SISTEM (Ubah suai di sini)
     // ==========================================
     const APP_CONFIG = {
-      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbwOBXAENisL6QaEbHGnRVDAhfZr97UbMVbYNT7-C0T3Wn4g3xZJisitUqpo5C4glGO3CA/exec"
+      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbxJdoQyB8ppDuptZXR3mHlR_e84Ya-No1Mom9YVZlDiOLzzTybflwgfTZXdQWcp_dvihA/exec"
     };
   </script>
   <style>
@@ -81,6 +81,31 @@
       filter: invert(1);
       cursor: pointer;
     }
+
+    /* PRINT STYLES UNTUK PDF BOLEH EDIT */
+    @media screen {
+      #print-area { display: none; }
+    }
+    @media print {
+      body, html { 
+        background: #ffffff !important; 
+        color: #000000 !important; 
+        margin: 0;
+        padding: 0;
+      }
+      body > *:not(#print-area) { display: none !important; }
+      #print-area { 
+        display: block !important; 
+        width: 100%;
+      }
+      @page {
+        margin: 15mm;
+      }
+      * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+    }
   </style>
 </head>
 <body class="p-4">
@@ -112,6 +137,9 @@
       <i data-lucide="settings" class="w-6 h-6"></i>
     </button>
   </header>
+
+  <!-- Print Container -->
+  <div id="print-area"></div>
 
   <!-- Main App -->
   <main id="main-app" class="space-y-6">
@@ -261,7 +289,7 @@
       <div class="space-y-4 text-sm text-gray-300">
         <p>⭐ <b>Prestasi & Integriti:</b> Sistem markah (guru & murid) HANYA sah untuk hari semasa sahaja. Kemaskini hari lepas hanya menyimpan rekod (0 point).</p>
         <p>🗺️ <b>Pemetaan GPS:</b> Koordinat GPS disimpan secara tersembunyi ke dalam Pangkalan Data untuk simpanan pentadbir.</p>
-        <p>📄 <b>Dokumentasi Berpusat:</b> Laporan disusun kemas. Cetakan eksklusif dalam bentuk PDF memelihara kualiti vektor teks.</p>
+        <p>📄 <b>Dokumentasi Berpusat:</b> Laporan disusun kemas. Gambar Google Drive dipintasi dengan selamat (tiada Ralat 403).</p>
         <p>📝 <b>Kemaskini Rekod:</b> Laporan yang sudah dihantar kini boleh diedit semula bersama rekod kehadiran.</p>
       </div>
     </div>
@@ -1112,7 +1140,7 @@
                 <i data-lucide="edit" class="w-4 h-4"></i> Edit
               </button>
               <button onclick="generatePDF(${index})" class="flex-1 bg-red-600 text-white font-bold py-2 rounded-xl border border-red-500/30 flex justify-center items-center gap-2 hover:bg-red-500 transition text-sm shadow-lg">
-                <i data-lucide="printer" class="w-4 h-4"></i> Cetak / Jana PDF
+                <i data-lucide="printer" class="w-4 h-4"></i> Cetak Laporan
               </button>
             </div>
          `;
@@ -1144,243 +1172,101 @@
 
         let imgHtml = '';
         if (imageMatches.length > 0) {
-            imgHtml = `<div class="section"><div class="section-title">Lampiran Bergambar</div>`;
-            imgHtml += `<div class="img-grid">`;
+            imgHtml = `<div style="margin-top: 20px;"><h4 style="font-size: 16px; font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 15px;">Lampiran Bergambar (Kolaj)</h4>`;
+            let gridCols = imageMatches.length > 1 ? 'repeat(2, 1fr)' : '1fr';
+            if(imageMatches.length >= 4) gridCols = 'repeat(3, 1fr)';
+            imgHtml += `<div style="display: grid; grid-template-columns: ${gridCols}; gap: 10px;">`;
             imageMatches.forEach(img => {
-                imgHtml += `<img src="${img.url}" crossorigin="anonymous" alt="${img.name}" onerror="this.src='https://placehold.co/400x400/eeeeee/999999?text=Gambar+Gagal'">`;
+                imgHtml += `<div style="aspect-ratio: 1; overflow: hidden; border: 1px solid #ddd; border-radius: 6px;">
+                                <img src="${img.url}" crossorigin="anonymous" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='https://placehold.co/400x400/eeeeee/999999?text=Gagal+Dimuatkan'">
+                            </div>`;
             });
             imgHtml += `</div></div>`;
         }
 
         let fileHtml = '';
         if (fileMatches.length > 0) {
-            fileHtml = `<div class="section"><div class="section-title">Pautan Dokumen (Imbas Kod QR)</div>
-            <div class="qr-grid">`;
+            fileHtml = `<div style="margin-top: 20px;"><h4 style="font-size: 16px; font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 15px;">Pautan Fail Berdokumen (Imbas QR)</h4>
+            <div style="display: flex; flex-wrap: wrap; gap: 15px;">`;
             fileMatches.forEach(file => {
-                let qr = new QRious({ value: file.url, size: 150 });
-                fileHtml += `<div class="qr-box">
-                                <img src="${qr.toDataURL()}" alt="QR Code">
-                                <div class="qr-text">${file.name}</div>
+                let qr = new QRious({ value: file.url, size: 120 });
+                fileHtml += `<div style="text-align: center; border: 1px solid #ddd; padding: 15px; border-radius: 8px; width: 140px;">
+                                <img src="${qr.toDataURL()}" style="margin: 0 auto; width: 100px; height: 100px;">
+                                <p style="font-size: 12px; word-break: break-all; margin-top: 10px; color: #333;">${file.name}</p>
                              </div>`;
             });
             fileHtml += `</div></div>`;
         }
 
-        const printWindow = window.open('', '_blank');
-        if(!printWindow) {
-            customAlert("Gagal membuka tetingkap cetakan. Sila benarkan 'pop-ups' untuk peranti / pelayar anda.");
-            return;
-        }
-
-        const htmlContent = `
-        <!DOCTYPE html>
-        <html lang="ms">
-        <head>
-            <meta charset="UTF-8">
-            <title>Laporan_Sesi_${laporan.kelas}_${displayTarikh.replace(/\//g, '')}</title>
-            <style>
-                @page { size: A4 portrait; margin: 20mm; }
-                body { 
-                    font-family: 'Arial', sans-serif; 
-                    color: #1a1a1a; 
-                    line-height: 1.5;
-                    margin: 0;
-                    padding: 0;
-                    background: #fff;
-                }
-                .container { max-width: 800px; margin: 0 auto; }
-                .header { 
-                    text-align: center; 
-                    border-bottom: 3px solid #FFCC00; 
-                    padding-bottom: 15px; 
-                    margin-bottom: 25px; 
-                }
-                .org-name { 
-                    font-size: 22px; 
-                    font-weight: 900; 
-                    color: #000; 
-                    margin: 0;
-                    letter-spacing: 1px;
-                }
-                .sub-org { 
-                    font-size: 16px; 
-                    font-weight: bold; 
-                    color: #444; 
-                    margin: 5px 0 10px 0; 
-                }
-                .doc-title {
-                    font-size: 18px;
-                    font-weight: bold;
-                    display: inline-block;
-                    background: #222;
-                    color: #FFCC00;
-                    padding: 5px 15px;
-                    border-radius: 4px;
-                }
-                .meta-table {
-                    width: 100%;
-                    border-collapse: collapse;
-                    margin-bottom: 25px;
-                }
-                .meta-table td {
-                    padding: 8px 12px;
-                    border: 1px solid #ddd;
-                    font-size: 13px;
-                }
-                .meta-table .label {
-                    background-color: #f4f4f4;
-                    font-weight: bold;
-                    width: 20%;
-                }
-                .status-hadir {
-                    font-weight: bold;
-                    color: #d32f2f;
-                    font-size: 14px;
-                }
-                .section { margin-bottom: 25px; page-break-inside: avoid; }
-                .section-title {
-                    font-size: 15px;
-                    font-weight: bold;
-                    border-bottom: 2px solid #eee;
-                    padding-bottom: 5px;
-                    margin-bottom: 15px;
-                    color: #000;
-                    text-transform: uppercase;
-                }
-                .ulasan-content {
-                    font-size: 13px;
-                    text-align: justify;
-                    white-space: pre-wrap;
-                    background: #fafafa;
-                    padding: 15px;
-                    border-radius: 5px;
-                    border: 1px solid #eee;
-                }
-                .img-grid {
-                    display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-                    gap: 15px;
-                }
-                .img-grid img {
-                    width: 100%;
-                    height: 200px;
-                    object-fit: cover;
-                    border-radius: 6px;
-                    border: 1px solid #ccc;
-                    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-                }
-                .qr-grid {
-                    display: flex;
-                    flex-wrap: wrap;
-                    gap: 20px;
-                }
-                .qr-box {
-                    text-align: center;
-                    border: 1px solid #eee;
-                    padding: 15px;
-                    border-radius: 8px;
-                    width: 130px;
-                    background: #f9f9f9;
-                }
-                .qr-box img {
-                    width: 100px;
-                    height: 100px;
-                    margin: 0 auto;
-                }
-                .qr-text {
-                    font-size: 11px;
-                    word-break: break-all;
-                    margin-top: 8px;
-                    font-weight: bold;
-                    color: #333;
-                }
-                .footer {
-                    margin-top: 40px;
-                    text-align: center;
-                    font-size: 10px;
-                    color: #666;
-                    border-top: 1px solid #eee;
-                    padding-top: 15px;
-                }
-                @media print {
-                    .meta-table .label { background-color: #f4f4f4 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                    .ulasan-content { background: #fafafa !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                    .doc-title { background: #222 !important; color: #FFCC00 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                }
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <div class="header">
-                    <h1 class="org-name">YAYASAN SULTAN AZLAN SHAH</h1>
-                    <h2 class="sub-org">SMK SUNGAI BAYO</h2>
-                    <div class="doc-title">LAPORAN SESI & DOKUMENTASI</div>
+        const printArea = document.getElementById('print-area');
+        printArea.innerHTML = `
+            <div style="font-family: Arial, sans-serif; color: #000; padding: 10px; line-height: 1.6;">
+                <div style="text-align: center; margin-bottom: 25px;">
+                    <h1 style="font-size: 22px; font-weight: bold; text-transform: uppercase; margin: 0;">YAYASAN SULTAN AZLAN SHAH</h1>
+                    <h2 style="font-size: 16px; font-weight: bold; color: #444; margin: 5px 0;">SMK SUNGAI BAYO</h2>
+                    <h3 style="font-size: 18px; font-weight: bold; margin-top: 20px; border-bottom: 2px solid #000; display: inline-block; padding-bottom: 5px;">LAPORAN SESI & DOKUMENTASI</h3>
                 </div>
 
-                <table class="meta-table">
-                    <tr>
-                        <td class="label">Tarikh Sesi</td>
-                        <td>${displayTarikh}</td>
-                        <td class="label">Masa Laporan</td>
-                        <td>${laporan.timestamp}</td>
-                    </tr>
-                    <tr>
-                        <td class="label">Nama Guru</td>
-                        <td>${laporan.guru}</td>
-                        <td class="label">Kelas Terlibat</td>
-                        <td>${laporan.kelas}</td>
-                    </tr>
-                    <tr>
-                        <td class="label">Kehadiran</td>
-                        <td colspan="3" class="status-hadir">${laporan.kehadiranSummary}</td>
-                    </tr>
-                </table>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 25px; font-size: 14px; background: #f9f9f9 !important; padding: 15px; border-radius: 8px; border: 1px solid #ccc;">
+                    <div>
+                        <p style="margin: 4px 0;"><strong>Tarikh:</strong> ${displayTarikh}</p>
+                        <p style="margin: 4px 0;"><strong>Masa Laporan:</strong> ${laporan.timestamp}</p>
+                        <p style="margin: 4px 0;"><strong>Nama Guru:</strong> ${laporan.guru}</p>
+                        <p style="margin: 4px 0;"><strong>Kelas:</strong> ${laporan.kelas}</p>
+                    </div>
+                    <div style="text-align: right;">
+                        <p style="margin: 4px 0;"><strong>Status Kehadiran Sesi:</strong></p>
+                        <p style="margin: 4px 0; color: #d32f2f !important; font-weight: bold; font-size: 16px;">${laporan.kehadiranSummary}</p>
+                    </div>
+                </div>
 
-                <div class="section">
-                    <div class="section-title">Ulasan / Nota Sesi</div>
-                    <div class="ulasan-content">${textOnly || '<i>Tiada ulasan disediakan.</i>'}</div>
+                <div style="margin-bottom: 20px;">
+                    <h4 style="font-size: 16px; font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 10px;">Ulasan Sesi</h4>
+                    <p style="font-size: 14px; white-space: pre-wrap; color: #222;">${textOnly || '<i>Tiada ulasan disediakan.</i>'}</p>
                 </div>
 
                 ${imgHtml}
                 ${fileHtml}
 
-                <div class="footer">
-                    Dokumen ini dijana secara automatik oleh Sistem PWA Yayasan Sultan Azlan Shah pada ${new Date().toLocaleString('ms-MY')}.
+                <div style="margin-top: 40px; border-top: 1px dashed #ccc; padding-top: 15px; text-align: center; font-size: 11px; color: #777;">
+                    Janaan Automatik oleh Sistem PWA Yayasan Sultan Azlan Shah
                 </div>
             </div>
+        `;
 
-            <script>
-                // Tunggu semua imej selesai dimuatkan sebelum memanggil perintah cetak (Print to PDF)
-                window.onload = function() {
-                    let images = document.getElementsByTagName('img');
-                    let loaded = 0;
-                    if(images.length === 0) {
-                        setTimeout(() => { window.print(); }, 500);
-                    } else {
-                        for(let i = 0; i < images.length; i++) {
-                            if(images[i].complete) {
-                                loaded++;
-                                if(loaded === images.length) setTimeout(() => { window.print(); }, 500);
-                            } else {
-                                images[i].addEventListener('load', () => {
-                                    loaded++;
-                                    if(loaded === images.length) setTimeout(() => { window.print(); }, 500);
-                                });
-                                images[i].addEventListener('error', () => {
-                                    loaded++;
-                                    if(loaded === images.length) setTimeout(() => { window.print(); }, 500);
-                                });
-                            }
-                        }
-                    }
+        setLoading(true, "Menyediakan dokumen cetakan...");
+
+        const images = printArea.querySelectorAll('img');
+        let loadedCount = 0;
+        const totalImages = images.length;
+
+        const triggerPrint = () => {
+            setLoading(false);
+            setTimeout(() => {
+                window.print();
+                printArea.innerHTML = '';
+            }, 500);
+        };
+
+        if (totalImages === 0) {
+            triggerPrint();
+        } else {
+            Array.from(images).forEach(img => {
+                if (img.complete) {
+                    loadedCount++;
+                    if (loadedCount === totalImages) triggerPrint();
+                } else {
+                    img.onload = () => {
+                        loadedCount++;
+                        if (loadedCount === totalImages) triggerPrint();
+                    };
+                    img.onerror = () => {
+                        loadedCount++;
+                        if (loadedCount === totalImages) triggerPrint();
+                    };
                 }
-            </script>
-        </body>
-        </html>`;
-
-        printWindow.document.open();
-        printWindow.document.write(htmlContent);
-        printWindow.document.close();
+            });
+        }
     }
 
     function setLoading(show, text = "Memuat...") {
