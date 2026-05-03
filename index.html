@@ -16,7 +16,7 @@
     // KONFIGURASI UTAMA SISTEM (Ubah suai di sini)
     // ==========================================
     const APP_CONFIG = {
-      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbw-H30EDn_SLlZRJiPcEEURZaxOjCQx6Bwpp4g8JFDEzLJKRmD-j6y2eEMRimZZis18TQ/exec"
+      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbxJdoQyB8ppDuptZXR3mHlR_e84Ya-No1Mom9YVZlDiOLzzTybflwgfTZXdQWcp_dvihA/exec"
     };
   </script>
   <style>
@@ -1173,9 +1173,12 @@
         }
 
         const container = document.createElement('div');
+        // FIX: Remove negative positioning that caused html2canvas to fail capturing the element.
         container.style.position = 'absolute';
-        container.style.left = '-9999px';
-        container.style.top = '-9999px';
+        container.style.left = '0';
+        container.style.top = '0';
+        container.style.zIndex = '-1000';
+        container.style.opacity = '0.01';
         container.style.padding = '30px';
         container.style.fontFamily = 'Arial, sans-serif';
         container.style.color = '#000';
@@ -1226,15 +1229,43 @@
         };
 
         setLoading(true, "Menjana Fail PDF...");
-        html2pdf().from(container).set(opt).save().then(() => {
-            document.body.removeChild(container);
-            setLoading(false);
-        }).catch(e => {
-            console.error("PDF Error:", e);
-            document.body.removeChild(container);
-            setLoading(false);
-            customAlert("Gagal menjana PDF. Sila pastikan capaian internet stabil.");
-        });
+        
+        // FIX: Ensure images are fully loaded before rendering the PDF to avoid blank pages.
+        const images = container.querySelectorAll('img');
+        let loadedCount = 0;
+        const totalImages = images.length;
+
+        const triggerPDF = () => {
+            html2pdf().from(container).set(opt).save().then(() => {
+                document.body.removeChild(container);
+                setLoading(false);
+            }).catch(e => {
+                console.error("PDF Error:", e);
+                document.body.removeChild(container);
+                setLoading(false);
+                customAlert("Gagal menjana PDF. Sila pastikan capaian internet stabil.");
+            });
+        };
+
+        if (totalImages === 0) {
+            triggerPDF();
+        } else {
+            Array.from(images).forEach(img => {
+                if (img.complete) {
+                    loadedCount++;
+                    if (loadedCount === totalImages) triggerPDF();
+                } else {
+                    img.onload = () => {
+                        loadedCount++;
+                        if (loadedCount === totalImages) triggerPDF();
+                    };
+                    img.onerror = () => {
+                        loadedCount++;
+                        if (loadedCount === totalImages) triggerPDF();
+                    };
+                }
+            });
+        }
     }
 
     function setLoading(show, text = "Memuat...") {
