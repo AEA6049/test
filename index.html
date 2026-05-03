@@ -9,12 +9,15 @@
   <script src="https://unpkg.com/lucide@latest"></script>
   <!-- Pustaka QRious untuk Jana QR Code Automatik -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+  <!-- Pustaka Cropper.js untuk Potong dan Posisi Gambar -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
   <script>
     // ==========================================
     // KONFIGURASI UTAMA SISTEM (Ubah suai di sini)
     // ==========================================
     const APP_CONFIG = {
-      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbxDrFH9mKBtle-VvHZPo-fD3s6Pg2aXVnBCYoBXVca--RFlNxEQveO6WGPgamODHLrUUA/exec"
+      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbyUIjxsKxxQSdV6u9F61WGSJgJL9UqoiNHmH2r1ah9lWXAn75YjOPJflY9zmfmDfsPYkQ/exec"
     };
   </script>
   <style>
@@ -159,7 +162,7 @@
     <!-- Teacher & Session Info -->
     <section class="neu-flat p-5 border border-yellow-500/20">
       <label class="block text-sm font-bold mb-2 text-yellow-500">Nama Guru</label>
-      <select id="guru-select" class="w-full p-3 neu-pressed outline-none mb-4">
+      <select id="guru-select" class="w-full p-3 neu-pressed outline-none mb-4" onchange="saveGuruSelection()">
         <option value="">-- Sedang memuat --</option>
       </select>
       
@@ -270,24 +273,33 @@
 
   <!-- Modal Tambah/Edit Murid -->
   <div id="murid-modal" class="fixed inset-0 z-[150] p-4 hidden flex items-center justify-center bg-black/80 backdrop-blur-md">
-    <div class="glass-panel w-full max-w-sm p-6 relative">
+    <div class="glass-panel w-full max-w-sm p-6 relative max-h-[90vh] overflow-y-auto">
       <h3 id="murid-modal-title" class="font-bold text-xl mb-4 text-yellow-500 text-center">Tambah Murid</h3>
       <input type="hidden" id="murid-modal-oldnama">
       
       <!-- RUANGAN GAMBAR AVATAR -->
-      <div class="mb-6 text-center">
+      <div id="murid-avatar-section" class="mb-6 text-center">
         <div class="relative inline-block">
-          <img id="murid-modal-img-preview" src="https://ui-avatars.com/api/?name=X&background=2a2a2a&color=FFCC00" class="w-24 h-24 rounded-full object-cover border-4 border-gray-800 shadow-lg mx-auto cursor-pointer hover:border-yellow-500 transition-colors" onclick="document.getElementById('murid-modal-gambar').click()">
-          <div class="absolute bottom-0 right-0 bg-yellow-500 text-black p-2 rounded-full cursor-pointer shadow-lg hover:scale-110 transition-transform" onclick="document.getElementById('murid-modal-gambar').click()">
+          <img id="murid-modal-img-preview" src="https://ui-avatars.com/api/?name=X&background=2a2a2a&color=FFCC00" class="w-24 h-24 rounded-full object-cover border-4 border-gray-800 shadow-lg mx-auto cursor-pointer hover:border-yellow-500 transition-colors" onclick="checkGuruBeforeUpload()">
+          <div class="absolute bottom-0 right-0 bg-yellow-500 text-black p-2 rounded-full cursor-pointer shadow-lg hover:scale-110 transition-transform" onclick="checkGuruBeforeUpload()">
             <i data-lucide="camera" class="w-4 h-4"></i>
           </div>
         </div>
         <p class="text-xs text-yellow-500 font-bold mt-2">+1 Point untuk upload gambar!</p>
-        <input type="file" id="murid-modal-gambar" accept="image/*" capture="environment" class="hidden" onchange="handleMuridImageSelect(this)">
       </div>
+      
+      <!-- RUANGAN CROP GAMBAR (TERSEMBUNYI PADA MULANYA) -->
+      <div id="murid-crop-section" class="mb-6 hidden flex flex-col items-center">
+        <div class="w-full h-64 bg-gray-900 overflow-hidden rounded-xl relative">
+            <img id="murid-crop-image" src="" class="max-w-full block">
+        </div>
+        <p class="text-xs text-yellow-500 font-bold mt-2 text-center">Sentuh dan gerakkan gambar ke dalam kotak fokus.</p>
+      </div>
+      
+      <input type="file" id="murid-modal-gambar" accept="image/*" capture="environment" class="hidden" onchange="handleMuridImageSelect(this)">
 
       <label class="block text-sm font-bold mb-1 text-gray-300">Nama Murid</label>
-      <input type="text" id="murid-modal-nama" class="w-full p-3 neu-pressed outline-none mb-4" placeholder="Cth: Ali Bin Abu">
+      <input type="text" id="murid-modal-nama" class="w-full p-3 neu-pressed outline-none mb-4 uppercase" placeholder="Cth: ALI BIN ABU">
       
       <label class="block text-sm font-bold mb-1 text-gray-300">Kelas</label>
       <input type="text" id="murid-modal-kelas" class="w-full p-3 neu-pressed outline-none mb-6" placeholder="Cth: 1 Zamrud">
@@ -339,6 +351,7 @@
     let editingReportState = null;
     
     let tempMuridImage = null; // Menyimpan data base64 gambar semasa edit/tambah
+    let cropper = null; // Objek cropper.js
 
     function showCustomModal(message, isConfirm = false, confirmCallback = null) {
         const modal = document.getElementById('custom-modal');
@@ -441,7 +454,7 @@
       checkLaporanDate(true);
 
       apiCall('getInitialData').then(data => {
-        students = data.murid.map(m => ({ ...m, domId: m.nama.replace(/[^a-zA-Z0-9]/g, '_') })) || [];
+        students = data.murid.map(m => ({ ...m, nama: m.nama.toUpperCase(), domId: m.nama.toUpperCase().replace(/[^a-zA-Z0-9]/g, '_') })) || [];
         teachers = data.guru || [];
         classes = [...new Set(students.map(s => s.kelas))];
         populateSelects();
@@ -475,12 +488,27 @@
       }
     }
 
+    function saveGuruSelection() {
+      const sel = document.getElementById('guru-select').value;
+      if(sel) {
+          localStorage.setItem('selectedGuru', sel);
+      } else {
+          localStorage.removeItem('selectedGuru');
+      }
+    }
+
     function populateSelects() {
       const guruSel = document.getElementById('guru-select');
       const kelasSel = document.getElementById('kelas-select');
       
       guruSel.innerHTML = '<option value="">-- Pilih Nama Guru --</option>';
       teachers.forEach(g => { guruSel.innerHTML += `<option value="${g}">${g}</option>`; });
+      
+      // Restore pilihan guru dari localStorage
+      const savedGuru = localStorage.getItem('selectedGuru');
+      if(savedGuru && teachers.includes(savedGuru)) {
+          guruSel.value = savedGuru;
+      }
       
       const currentKelas = kelasSel.value;
       kelasSel.innerHTML = '<option value="">-- Sila Pilih Kelas --</option>';
@@ -548,7 +576,7 @@
       let historyMap = {};
       if (currentHistoryData) {
          currentHistoryData.forEach(item => {
-             historyMap[item.nama] = item;
+             historyMap[item.nama.toUpperCase()] = item;
          });
       }
 
@@ -557,9 +585,9 @@
         let isChecked = true;
 
         if (tarikhPilihan !== todayStr) {
-            if (historyMap[std.nama]) {
-                currentStar = historyMap[std.nama].bintang;
-                isChecked = historyMap[std.nama].hadir;
+            if (historyMap[std.nama.toUpperCase()]) {
+                currentStar = historyMap[std.nama.toUpperCase()].bintang;
+                isChecked = historyMap[std.nama.toUpperCase()].hadir;
             } else {
                 currentStar = 0;
                 isChecked = false;
@@ -593,7 +621,7 @@
               <input type="checkbox" id="hadir-${std.domId}" ${isChecked ? 'checked' : ''} onchange="toggleAttendance('${std.domId}')" class="w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0 cursor-pointer rounded bg-gray-900 border-gray-700">
               <img src="${imgAvatar}" onerror="this.src='https://ui-avatars.com/api/?name=${safeName}&background=2a2a2a&color=FFCC00'" class="w-12 h-12 rounded-full object-cover border-2 border-yellow-500/50 cursor-pointer hover:scale-105 transition-transform flex-shrink-0 shadow-md" onclick="showFullImage('${imgAvatar}')">
               <div>
-                <p class="font-bold text-gray-200 leading-tight">${std.nama}</p>
+                <p class="font-bold text-gray-200 leading-tight uppercase">${std.nama}</p>
                 <p class="text-xs text-yellow-500 mt-1">Terkumpul: <span id="terkumpul-${std.domId}">${std.prestasi}</span> ⭐</p>
               </div>
             </div>
@@ -731,21 +759,50 @@
       }
     }
 
-    async function handleMuridImageSelect(input) {
+    function checkGuruBeforeUpload() {
+       const guru = document.getElementById('guru-select').value;
+       if (!guru) {
+           customAlert("Sila pilih nama guru terlebih dahulu sebelum memuat naik gambar murid.");
+           return;
+       }
+       document.getElementById('murid-modal-gambar').click();
+    }
+
+    function handleMuridImageSelect(input) {
        if (input.files && input.files[0]) {
           const file = input.files[0];
-          const b64 = await compressImage(file);
-          document.getElementById('murid-modal-img-preview').src = b64;
-          tempMuridImage = {
-             mimeType: file.type,
-             data: b64.split(',')[1]
+          const reader = new FileReader();
+          reader.onload = (e) => {
+              document.getElementById('murid-avatar-section').classList.add('hidden');
+              document.getElementById('murid-crop-section').classList.remove('hidden');
+              const cropImg = document.getElementById('murid-crop-image');
+              cropImg.src = e.target.result;
+              
+              if(cropper) cropper.destroy();
+              cropper = new Cropper(cropImg, {
+                  aspectRatio: 1,
+                  viewMode: 1,
+                  dragMode: 'move',
+                  autoCropArea: 1,
+                  restore: false,
+                  guides: false,
+                  center: false,
+                  highlight: false,
+                  cropBoxMovable: false,
+                  cropBoxResizable: false,
+                  toggleDragModeOnDblclick: false
+              });
           };
+          reader.readAsDataURL(file);
        }
     }
 
     function openAddMurid() {
       if(!navigator.onLine) return customAlert('Memerlukan internet untuk operasi ini.');
       tempMuridImage = null;
+      if(cropper) { cropper.destroy(); cropper = null; }
+      document.getElementById('murid-avatar-section').classList.remove('hidden');
+      document.getElementById('murid-crop-section').classList.add('hidden');
       document.getElementById('murid-modal-img-preview').src = "https://ui-avatars.com/api/?name=Baru&background=2a2a2a&color=FFCC00";
       document.getElementById('murid-modal-gambar').value = "";
       document.getElementById('murid-modal-title').innerText = 'Tambah Murid Baharu';
@@ -761,28 +818,47 @@
       const std = students.find(s => s.nama === nama);
       if(std) {
         tempMuridImage = null;
+        if(cropper) { cropper.destroy(); cropper = null; }
+        document.getElementById('murid-avatar-section').classList.remove('hidden');
+        document.getElementById('murid-crop-section').classList.add('hidden');
         let safeName = encodeURIComponent(std.nama);
         document.getElementById('murid-modal-img-preview').src = std.gambar ? std.gambar : `https://ui-avatars.com/api/?name=${safeName}&background=2a2a2a&color=FFCC00`;
         document.getElementById('murid-modal-gambar').value = "";
         document.getElementById('murid-modal-title').innerText = 'Ubah Suai Murid';
-        document.getElementById('murid-modal-oldnama').value = std.nama;
-        document.getElementById('murid-modal-nama').value = std.nama;
+        document.getElementById('murid-modal-oldnama').value = std.nama.toUpperCase();
+        document.getElementById('murid-modal-nama').value = std.nama.toUpperCase();
         document.getElementById('murid-modal-kelas').value = std.kelas;
         document.getElementById('murid-modal-delete').classList.remove('hidden');
         document.getElementById('murid-modal').classList.remove('hidden');
       }
     }
 
-    function closeMuridModal() { document.getElementById('murid-modal').classList.add('hidden'); }
+    function closeMuridModal() {
+      if(cropper) { cropper.destroy(); cropper = null; }
+      document.getElementById('murid-avatar-section').classList.remove('hidden');
+      document.getElementById('murid-crop-section').classList.add('hidden');
+      document.getElementById('murid-modal-gambar').value = '';
+      document.getElementById('murid-modal').classList.add('hidden');
+    }
 
     function saveMurid() {
-      const oldNama = document.getElementById('murid-modal-oldnama').value;
-      const nama = document.getElementById('murid-modal-nama').value.trim();
+      const oldNama = document.getElementById('murid-modal-oldnama').value.toUpperCase();
+      const nama = document.getElementById('murid-modal-nama').value.trim().toUpperCase();
       const kelas = document.getElementById('murid-modal-kelas').value.trim();
       const guru = document.getElementById('guru-select').value;
       
       if(!nama || !kelas) return customAlert('Sila isi nama dan kelas!');
       
+      // Dapatkan data dari cropper jika diubah suai
+      if (cropper) {
+          const canvas = cropper.getCroppedCanvas({ width: 400, height: 400 });
+          const base64Url = canvas.toDataURL('image/jpeg', 0.8);
+          tempMuridImage = {
+              mimeType: 'image/jpeg',
+              data: base64Url.split(',')[1]
+          };
+      }
+
       let payload = { oldNama, nama, kelas, guru };
       if (tempMuridImage) {
          payload.gambarData = tempMuridImage.data;
@@ -796,14 +872,16 @@
       
       apiCall(apiEndpoint, payload).then((res) => {
         if(res.pointsEarned && res.pointsEarned > 0) {
-           customAlert(`Berjaya disimpan!\nPoint tambahan untuk guru dikesan: +${res.pointsEarned}`);
+           customAlert(`Tahniah cikgu! Anda dapat +${res.pointsEarned} point kerana memuat naik gambar murid.`);
+        } else {
+           customAlert(`Maklumat murid berjaya disimpan!`);
         }
         loadInitialData(); 
       }).catch(err => { customAlert('Gagal: ' + err); setLoading(false); });
     }
 
     function deleteMuridAction() {
-      const nama = document.getElementById('murid-modal-oldnama').value;
+      const nama = document.getElementById('murid-modal-oldnama').value.toUpperCase();
       if(!nama) return;
       
       customConfirm('Padam rekod ini secara kekal?', () => {
@@ -975,7 +1053,7 @@
       const muridData = stdInClass.map(std => {
         const hadir = document.getElementById(`hadir-${std.domId}`).checked;
         const bintang = parseInt(document.getElementById(`star-val-${std.domId}`).value);
-        return { nama: std.nama, hadir, bintang };
+        return { nama: std.nama.toUpperCase(), hadir, bintang };
       });
 
       const payload = { 
