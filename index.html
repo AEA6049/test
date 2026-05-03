@@ -14,7 +14,7 @@
     // KONFIGURASI UTAMA SISTEM (Ubah suai di sini)
     // ==========================================
     const APP_CONFIG = {
-      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbz5Z5yv8t30exqjETCDwCk8Yo_vWTdwBrOHd42l7KHOvMmlJatiSw803cXIVWV-zNr-Wg/exec"
+      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbwEp2uvAAHOHx9EEfWuiftcyJMV_pMHD7PY-hgjwb4Z1azLAWRsBapRLiXAi9xRcal1eQ/exec"
     };
   </script>
   <style>
@@ -89,13 +89,14 @@
     @media print {
       @page {
         size: A4;
-        margin: 1.5cm 1.0cm 1.0cm 1.0cm; /* Top 1.5cm, Right 1.0cm, Bottom 1.0cm, Left 1.0cm */
+        margin: 0; /* SET KEPADA 0 UNTUK MENGHILANGKAN BROWSER HEADER DAN FOOTER (URL/TARIKH/PAGE) */
       }
       body, html { 
         background: #ffffff !important; 
         color: #000000 !important; 
         margin: 0;
         padding: 0;
+        width: 100%;
       }
       body > *:not(#print-area) { display: none !important; }
       #print-area { 
@@ -1221,82 +1222,98 @@
         }
 
         const printArea = document.getElementById('print-area');
+        // STRUKTUR TABLE DIGUNAKAN UNTUK FORCING MARGIN KESELURUHAN & SETIAP MUKA SURAT TANPA HEADERS
         printArea.innerHTML = `
-            <div style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1f2937; padding: 0; width: 100%; margin: 0 auto; background: #ffffff;">
-                
-                <!-- Header Section -->
-                <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid #FFCC00; padding-bottom: 15px; margin-bottom: 30px;">
-                    <div>
-                        <h1 style="font-size: 28px; font-weight: 800; color: #111827; margin: 0; text-transform: uppercase; letter-spacing: 0.5px;">Dokumentasi Sesi</h1>
-                        <h2 style="font-size: 16px; font-weight: 600; color: #6b7280; margin: 5px 0 0 0;">YAYASAN SULTAN AZLAN SHAH</h2>
-                    </div>
-                    <div style="text-align: right;">
-                        <div style="background: #111827; color: #FFCC00; padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: bold; display: inline-block; margin-bottom: 8px;">LAPORAN RASMI</div>
-                        <p style="margin: 0; font-size: 12px; color: #6b7280; font-weight: 600;">Dicetak pada: ${new Date().toLocaleDateString('ms-MY')}</p>
-                    </div>
-                </div>
+            <table style="width: 100%; border: none; border-collapse: collapse;">
+                <thead style="display: table-header-group;">
+                    <tr><td style="border: none; padding: 0;"><div style="height: 2.0cm;"></div></td></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td style="border: none; padding-left: 1.0cm; padding-right: 1.0cm; padding-bottom: 0; padding-top: 0;">
+                            <div style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1f2937; padding: 0; width: 100%; margin: 0 auto; background: #ffffff;">
+                                
+                                <!-- Header Section -->
+                                <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid #FFCC00; padding-bottom: 15px; margin-bottom: 30px;">
+                                    <div>
+                                        <h1 style="font-size: 28px; font-weight: 800; color: #111827; margin: 0; text-transform: uppercase; letter-spacing: 0.5px;">Dokumentasi Sesi</h1>
+                                        <h2 style="font-size: 16px; font-weight: 600; color: #6b7280; margin: 5px 0 0 0;">YAYASAN SULTAN AZLAN SHAH</h2>
+                                    </div>
+                                    <div style="text-align: right;">
+                                        <div style="background: #111827; color: #FFCC00; padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: bold; display: inline-block; margin-bottom: 8px;">LAPORAN RASMI</div>
+                                        <p style="margin: 0; font-size: 12px; color: #6b7280; font-weight: 600;">Dicetak pada: ${new Date().toLocaleDateString('ms-MY')}</p>
+                                    </div>
+                                </div>
 
-                <!-- Meta Information Card -->
-                <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; margin-bottom: 30px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                    <div>
-                        <p style="font-size: 11px; text-transform: uppercase; color: #9ca3af; font-weight: 700; margin: 0 0 4px 0;">Tarikh Laporan</p>
-                        <p style="font-size: 15px; color: #111827; font-weight: 600; margin: 0;">${displayTarikh} <span style="color: #6b7280; font-weight: 400; font-size: 13px;">(${laporan.timestamp})</span></p>
-                    </div>
-                    <div>
-                        <p style="font-size: 11px; text-transform: uppercase; color: #9ca3af; font-weight: 700; margin: 0 0 4px 0;">Guru Bertugas</p>
-                        <p style="font-size: 15px; color: #111827; font-weight: 600; margin: 0;">${laporan.guru}</p>
-                    </div>
-                    <div>
-                        <p style="font-size: 11px; text-transform: uppercase; color: #9ca3af; font-weight: 700; margin: 0 0 4px 0;">Kelas / Sesi</p>
-                        <p style="font-size: 15px; color: #111827; font-weight: 600; margin: 0;">${laporan.kelas}</p>
-                    </div>
-                    <div>
-                        <p style="font-size: 11px; text-transform: uppercase; color: #9ca3af; font-weight: 700; margin: 0 0 4px 0;">Status Kehadiran</p>
-                        <p style="font-size: 15px; color: #b91c1c; font-weight: 700; margin: 0;">${laporan.kehadiranSummary}</p>
-                    </div>
-                </div>
+                                <!-- Meta Information Card -->
+                                <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; margin-bottom: 30px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                                    <div>
+                                        <p style="font-size: 11px; text-transform: uppercase; color: #9ca3af; font-weight: 700; margin: 0 0 4px 0;">Tarikh Laporan</p>
+                                        <p style="font-size: 15px; color: #111827; font-weight: 600; margin: 0;">${displayTarikh} <span style="color: #6b7280; font-weight: 400; font-size: 13px;">(${laporan.timestamp})</span></p>
+                                    </div>
+                                    <div>
+                                        <p style="font-size: 11px; text-transform: uppercase; color: #9ca3af; font-weight: 700; margin: 0 0 4px 0;">Guru Bertugas</p>
+                                        <p style="font-size: 15px; color: #111827; font-weight: 600; margin: 0;">${laporan.guru}</p>
+                                    </div>
+                                    <div>
+                                        <p style="font-size: 11px; text-transform: uppercase; color: #9ca3af; font-weight: 700; margin: 0 0 4px 0;">Kelas / Sesi</p>
+                                        <p style="font-size: 15px; color: #111827; font-weight: 600; margin: 0;">${laporan.kelas}</p>
+                                    </div>
+                                    <div>
+                                        <p style="font-size: 11px; text-transform: uppercase; color: #9ca3af; font-weight: 700; margin: 0 0 4px 0;">Status Kehadiran</p>
+                                        <p style="font-size: 15px; color: #b91c1c; font-weight: 700; margin: 0;">${laporan.kehadiranSummary}</p>
+                                    </div>
+                                </div>
 
-                <!-- Ulasan Section -->
-                <div style="margin-bottom: 35px;">
-                    <h3 style="font-size: 16px; font-weight: 700; color: #111827; display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
-                        <span style="width: 24px; height: 24px; background: #FFCC00; color: #000; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 12px;">1</span> Ulasan Sesi
-                    </h3>
-                    <div style="background: #ffffff; border-left: 4px solid #FFCC00; padding: 16px 20px; font-size: 14px; line-height: 1.7; color: #374151; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border-radius: 0 8px 8px 0; white-space: pre-wrap;">${textOnly || 'Tiada ulasan disediakan bagi sesi ini.'}</div>
-                </div>
+                                <!-- Ulasan Section -->
+                                <div style="margin-bottom: 35px;">
+                                    <h3 style="font-size: 16px; font-weight: 700; color: #111827; display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                                        <span style="width: 24px; height: 24px; background: #FFCC00; color: #000; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 12px;">1</span> Ulasan Sesi
+                                    </h3>
+                                    <div style="background: #ffffff; border-left: 4px solid #FFCC00; padding: 16px 20px; font-size: 14px; line-height: 1.7; color: #374151; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border-radius: 0 8px 8px 0; white-space: pre-wrap;">${textOnly || 'Tiada ulasan disediakan bagi sesi ini.'}</div>
+                                </div>
 
-                <!-- Lampiran Gambar -->
-                ${imgHtml ? `<div style="margin-bottom: 35px;">
-                    <h3 style="font-size: 16px; font-weight: 700; color: #111827; display: flex; align-items: center; gap: 8px; margin-bottom: 15px;">
-                        <span style="width: 24px; height: 24px; background: #FFCC00; color: #000; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 12px;">2</span> Lampiran Visual
-                    </h3>
-                    ${imgHtml}
-                </div>` : ''}
+                                <!-- Lampiran Gambar -->
+                                ${imgHtml ? `<div style="margin-bottom: 35px;">
+                                    <h3 style="font-size: 16px; font-weight: 700; color: #111827; display: flex; align-items: center; gap: 8px; margin-bottom: 15px;">
+                                        <span style="width: 24px; height: 24px; background: #FFCC00; color: #000; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 12px;">2</span> Lampiran Visual
+                                    </h3>
+                                    ${imgHtml}
+                                </div>` : ''}
 
-                <!-- Pautan Fail (QR) -->
-                ${fileHtml ? `<div style="margin-bottom: 35px;">
-                    <h3 style="font-size: 16px; font-weight: 700; color: #111827; display: flex; align-items: center; gap: 8px; margin-bottom: 15px;">
-                        <span style="width: 24px; height: 24px; background: #FFCC00; color: #000; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 12px;">3</span> Dokumen Sokongan
-                    </h3>
-                    <p style="font-size: 12px; color: #6b7280; margin-top: -10px; margin-bottom: 15px;">Sila imbas Kod QR di bawah menggunakan telefon pintar untuk memuat turun atau melihat fail yang dilampirkan.</p>
-                    ${fileHtml}
-                </div>` : ''}
+                                <!-- Pautan Fail (QR) -->
+                                ${fileHtml ? `<div style="margin-bottom: 35px;">
+                                    <h3 style="font-size: 16px; font-weight: 700; color: #111827; display: flex; align-items: center; gap: 8px; margin-bottom: 15px;">
+                                        <span style="width: 24px; height: 24px; background: #FFCC00; color: #000; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 12px;">3</span> Dokumen Sokongan
+                                    </h3>
+                                    <p style="font-size: 12px; color: #6b7280; margin-top: -10px; margin-bottom: 15px;">Sila imbas Kod QR di bawah menggunakan telefon pintar untuk memuat turun atau melihat fail yang dilampirkan.</p>
+                                    ${fileHtml}
+                                </div>` : ''}
 
-                <!-- Ruangan Tandatangan -->
-                <div style="margin-top: 50px; padding-top: 30px; border-top: 1px dashed #d1d5db; display: flex; justify-content: space-around; page-break-inside: avoid;">
-                    <div style="width: 200px; text-align: center;">
-                        <p style="font-size: 12px; color: #6b7280; margin-bottom: 60px;">Disediakan oleh,</p>
-                        <div style="border-bottom: 1px solid #111827; margin-bottom: 8px;"></div>
-                        <p style="font-weight: 700; font-size: 14px; margin: 0; color: #111827;">${laporan.guru}</p>
-                        <p style="font-size: 11px; color: #6b7280; margin: 2px 0 0 0;">Guru / Fasilitator Sesi</p>
-                    </div>
-                    <div style="width: 200px; text-align: center;">
-                        <p style="font-size: 12px; color: #6b7280; margin-bottom: 60px;">Disemak oleh,</p>
-                        <div style="border-bottom: 1px solid #111827; margin-bottom: 8px;"></div>
-                        <p style="font-weight: 700; font-size: 14px; margin: 0; color: #111827;">&nbsp;</p>
-                        <p style="font-size: 11px; color: #6b7280; margin: 2px 0 0 0;">Pengesahan Pentadbir</p>
-                    </div>
-                </div>
-            </div>
+                                <!-- Ruangan Tandatangan -->
+                                <div style="margin-top: 50px; padding-top: 30px; border-top: 1px dashed #d1d5db; display: flex; justify-content: space-around; page-break-inside: avoid;">
+                                    <div style="width: 200px; text-align: center;">
+                                        <p style="font-size: 12px; color: #6b7280; margin-bottom: 60px;">Disediakan oleh,</p>
+                                        <div style="border-bottom: 1px solid #111827; margin-bottom: 8px;"></div>
+                                        <p style="font-weight: 700; font-size: 14px; margin: 0; color: #111827;">${laporan.guru}</p>
+                                        <p style="font-size: 11px; color: #6b7280; margin: 2px 0 0 0;">Guru / Fasilitator Sesi</p>
+                                    </div>
+                                    <div style="width: 200px; text-align: center;">
+                                        <p style="font-size: 12px; color: #6b7280; margin-bottom: 60px;">Disemak oleh,</p>
+                                        <div style="border-bottom: 1px solid #111827; margin-bottom: 8px;"></div>
+                                        <p style="font-weight: 700; font-size: 14px; margin: 0; color: #111827;">&nbsp;</p>
+                                        <p style="font-size: 11px; color: #6b7280; margin: 2px 0 0 0;">Pengesahan Pentadbir</p>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+                <tfoot style="display: table-footer-group;">
+                    <tr><td style="border: none; padding: 0;"><div style="height: 1.0cm;"></div></td></tr>
+                </tfoot>
+            </table>
         `;
 
         const images = printArea.querySelectorAll('img');
