@@ -14,7 +14,7 @@
     // KONFIGURASI UTAMA SISTEM (Ubah suai di sini)
     // ==========================================
     const APP_CONFIG = {
-      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbwQBEJ4zTojm2LReSioW4hXaQrl1fk0HDfPYtUZagzs7ob4vhuHM0awdmZW6Zu40u4k5A/exec"
+      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbw9a-NBF_lfoj0MG4TSbhCML_h_BCyHA-FAlTGUxi8MKMIaqpPE0ooeWID1UOWZyGAuog/exec"
     };
   </script>
   <style>
@@ -178,9 +178,12 @@
         <button id="subtab-sejarah" onclick="switchReportTab('sejarah')" class="text-gray-400 font-bold px-2 py-1 border-b-2 border-transparent transition">Sejarah Laporan</button>
       </div>
 
-      <!-- Laporan Baru -->
+      <!-- Laporan Baru / Kemaskini -->
       <div id="pelaporan-baru-section">
-        <h2 class="text-lg font-bold mb-2 text-yellow-500">Laporan Sesi & Dokumentasi</h2>
+        <div class="flex justify-between items-center mb-2">
+           <h2 id="laporan-form-title" class="text-lg font-bold text-yellow-500">Laporan Sesi & Dokumentasi</h2>
+           <button id="btn-cancel-edit" onclick="cancelEditReport()" class="hidden text-xs text-red-400 hover:text-red-300 border border-red-500/30 px-3 py-1 rounded-full">Batal Kemaskini</button>
+        </div>
         <p class="text-xs text-gray-400 mb-4">Muat naik fail tanpa had. Boleh pilih fail satu persatu berulang kali.</p>
         
         <label class="block text-sm font-bold mb-2 text-yellow-500">Tarikh Laporan</label>
@@ -188,7 +191,7 @@
         <p id="amaran-tarikh-laporan" class="text-xs text-red-400 mb-4 font-bold hidden">*PERHATIAN: Laporan untuk tarikh lepas (bukan hari ini) TIDAK akan memberikan sebarang point. Demi integriti.</p>
 
         <label class="block text-sm font-bold mb-2 text-yellow-500">Ulasan Sesi</label>
-        <textarea id="ulasan" rows="4" class="w-full p-3 neu-pressed outline-none mb-4" placeholder="Ulasan ringkas atau padat..."></textarea>
+        <textarea id="ulasan" rows="6" class="w-full p-3 neu-pressed outline-none mb-4" placeholder="Ulasan ringkas atau padat..."></textarea>
         
         <label class="block text-sm font-bold mb-2 text-yellow-500">Lampiran Bukti (Gambar / Dokumen)</label>
         <div class="flex flex-col gap-2 mb-6">
@@ -198,9 +201,10 @@
           </button>
           <!-- Tempat senarai fail dipaparkan -->
           <div id="file-queue-container" class="space-y-2 mt-2 empty:hidden"></div>
+          <div id="old-file-container" class="space-y-2 mt-2 empty:hidden"></div>
         </div>
 
-        <button onclick="submitReport()" class="w-full py-4 text-lg font-bold rounded-2xl bg-yellow-500 text-black shadow-lg flex justify-center items-center gap-2 hover:bg-yellow-400">
+        <button id="btn-submit-report" onclick="submitReport()" class="w-full py-4 text-lg font-bold rounded-2xl bg-yellow-500 text-black shadow-lg flex justify-center items-center gap-2 hover:bg-yellow-400">
           <i data-lucide="send" class="w-5 h-5"></i> Hantar Laporan Sesi
         </button>
       </div>
@@ -258,8 +262,8 @@
       <div class="space-y-4 text-sm text-gray-300">
         <p>⭐ <b>Prestasi & Integriti:</b> Sistem markah (guru & murid) HANYA sah untuk hari semasa sahaja. Kemaskini hari lepas hanya menyimpan rekod (0 point).</p>
         <p>🗺️ <b>Pemetaan GPS:</b> Koordinat GPS disimpan secara tersembunyi ke dalam Pangkalan Data untuk simpanan pentadbir.</p>
-        <p>📄 <b>Laporan & Cetakan:</b> Fail gambar akan dipaparkan di dalam PDF. Susunan pintar dan profesional diperkenalkan bagi menyelesaikan isu paparan PDF kosong (blank).</p>
-        <p>📎 <b>Muat Naik Berbilang:</b> Anda boleh memilih fail satu persatu tanpa had untuk dihantar dalam satu laporan.</p>
+        <p>📄 <b>Laporan & Cetakan:</b> Fail gambar akan dipaparkan di dalam PDF. Gambar Drive akan diproses melalui proxy automatik bagi mengelakkan halaman kosong (blank).</p>
+        <p>📝 <b>Kemaskini Rekod:</b> Laporan yang sudah dihantar kini boleh diedit semula bersama rekod kehadiran.</p>
       </div>
     </div>
   </div>
@@ -272,7 +276,9 @@
     let teachers = [];
     let offlineQueue = JSON.parse(localStorage.getItem('offlineQueue') || '[]');
     let currentHistoryData = null; 
+    let currentReportHistoryData = [];
     let reportFileQueue = []; 
+    let editingReportState = null;
 
     function showCustomModal(message, isConfirm = false, confirmCallback = null) {
         const modal = document.getElementById('custom-modal');
@@ -322,8 +328,10 @@
           else if (action === 'deleteMurid') google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).deleteMurid(payload);
           else if (action === 'processAttendance') google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).processAttendance(payload);
           else if (action === 'processReport') google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).processReport(payload);
+          else if (action === 'updateReport') google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).updateReport(payload);
           else if (action === 'getAttendanceHistory') google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).getAttendanceHistory(payload);
           else if (action === 'getReportHistory') google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).getReportHistory(payload);
+          else if (action === 'getDriveImageBase64') google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).getDriveImageBase64(payload);
         });
       } else {
         const url = APP_CONFIG.GAS_WEB_APP_URL + "?action=" + action;
@@ -751,6 +759,40 @@
       renderFileQueue();
     }
 
+    function removeOldFile(index) {
+      if(editingReportState && editingReportState.oldAttachments) {
+         editingReportState.oldAttachments.splice(index, 1);
+         renderOldFiles();
+      }
+    }
+
+    function renderOldFiles() {
+       const container = document.getElementById('old-file-container');
+       container.innerHTML = '';
+       if(!editingReportState || !editingReportState.oldAttachments) return;
+
+       editingReportState.oldAttachments.forEach((attStr, index) => {
+          let isImg = attStr.startsWith('[IMAGE');
+          let nameMatch = attStr.match(/\[.*?\|(.*?)\]/);
+          let name = nameMatch ? nameMatch[1] : "Fail Lama";
+          let iconName = isImg ? "image" : "file-text";
+          let iconColor = isImg ? "text-yellow-500" : "text-gray-400";
+
+          container.innerHTML += `
+          <div class="flex justify-between items-center p-3 bg-gray-800 rounded-xl border border-gray-600 opacity-80">
+            <div class="flex items-center gap-2 truncate w-5/6">
+              <i data-lucide="${iconName}" class="w-5 h-5 ${iconColor} flex-shrink-0"></i>
+              <span class="text-sm text-gray-300 truncate">[Telah Disimpan] ${name}</span>
+            </div>
+            <button type="button" onclick="removeOldFile(${index})" class="text-red-400 hover:text-red-300 p-1 flex-shrink-0" title="Padam fail lama">
+              <i data-lucide="trash-2" class="w-5 h-5"></i>
+            </button>
+          </div>
+          `;
+       });
+       lucide.createIcons();
+    }
+
     function compressImage(file) {
       return new Promise((resolve) => {
         const reader = new FileReader();
@@ -838,34 +880,55 @@
       const ulasan = document.getElementById('ulasan').value;
       
       if(!guru || !kelas || !tarikh) return customAlert('Sila pilih nama guru, kelas & tarikh di atas!');
-      if(!ulasan && reportFileQueue.length === 0) return customAlert('Sila isi ulasan atau muat naik fail!');
+      
+      let oldFilesCount = editingReportState ? editingReportState.oldAttachments.length : 0;
+      if(!ulasan && reportFileQueue.length === 0 && oldFilesCount === 0) return customAlert('Sila isi ulasan atau muat naik fail!');
 
       setLoading(true, "Memproses Fail & Upload...");
       const gps = await fetchGPS();
       let processedFiles = await processUploadFiles(reportFileQueue);
 
-      const payload = { 
-        type: 'report', 
-        guru, 
-        kelas,
-        tarikh,
-        ulasan, 
-        files: processedFiles, 
-        gps
-      };
-
-      handleSubmission('processReport', payload, "Laporan & Dokumentasi Berjaya Dihantar!");
+      if (editingReportState) {
+         const payload = {
+            type: 'updateReport',
+            tarikh: editingReportState.tarikh,
+            timestamp: editingReportState.timestamp,
+            guru,
+            kelas,
+            ulasan,
+            files: processedFiles,
+            oldAttachments: editingReportState.oldAttachments
+         };
+         handleSubmission('updateReport', payload, "Laporan Berjaya Dikemaskini!");
+      } else {
+         const payload = { 
+           type: 'report', 
+           guru, 
+           kelas,
+           tarikh,
+           ulasan, 
+           files: processedFiles, 
+           gps
+         };
+         handleSubmission('processReport', payload, "Laporan & Dokumentasi Berjaya Dihantar!");
+      }
     }
 
     function handleSubmission(endpoint, payload, successMsg) {
       if (navigator.onLine) {
         apiCall(endpoint, payload).then(res => {
           setLoading(false);
-          customAlert(`${successMsg}\nPoint Tambahan Direkod: +${res.pointsEarned || 0}`);
-          if(endpoint === 'processReport') {
+          if(res.pointsEarned !== undefined) {
+             customAlert(`${successMsg}\nPoint Tambahan Direkod: +${res.pointsEarned || 0}`);
+          } else {
+             customAlert(`${successMsg}`);
+          }
+          
+          if(endpoint === 'processReport' || endpoint === 'updateReport') {
             document.getElementById('ulasan').value = '';
             reportFileQueue = [];
             renderFileQueue();
+            cancelEditReport();
             switchReportTab('sejarah'); 
           }
           loadInitialData(); 
@@ -887,12 +950,68 @@
       
       setLoading(true, "Mencari Laporan...");
       apiCall('getReportHistory', { tarikh }).then(res => {
-        renderReportHistory(res.data, tarikh);
+        currentReportHistoryData = res.data;
+        renderReportHistory(currentReportHistoryData, tarikh);
         setLoading(false);
       }).catch(err => {
         customAlert("Gagal mendapat laporan: " + err);
         setLoading(false);
       });
+    }
+
+    function editLaporan(index) {
+       const laporan = currentReportHistoryData[index];
+       editingReportState = { ...laporan };
+       editingReportState.tarikh = document.getElementById('tarikh-sejarah-laporan').value;
+       
+       let textOnly = "";
+       let ulasanMatch = laporan.maklumat.match(/Ulasan: ([\s\S]*?) \n\nLampiran:/);
+       if(ulasanMatch) textOnly = ulasanMatch[1];
+       else textOnly = laporan.maklumat
+            .replace(/\[IMAGE\|.*?\](https?:\/\/[^\s<]+)/g, '')
+            .replace(/\[FILE\|.*?\](https?:\/\/[^\s<]+)/g, '')
+            .replace(/Lampiran:\s*/g, '')
+            .replace(/^Ulasan:\s*/, '')
+            .trim();
+            
+       if(textOnly === "Tiada") textOnly = "";
+
+       let allAttachments = [];
+       let match;
+       let imageRegex = /\[IMAGE\|(.*?)\](https?:\/\/[^\s<]+)/g;
+       while ((match = imageRegex.exec(laporan.maklumat)) !== null) {
+          allAttachments.push(`[IMAGE|${match[1]}]${match[2]}`);
+       }
+       let fileRegex = /\[FILE\|(.*?)\](https?:\/\/[^\s<]+)/g;
+       while ((match = fileRegex.exec(laporan.maklumat)) !== null) {
+          allAttachments.push(`[FILE|${match[1]}]${match[2]}`);
+       }
+       
+       editingReportState.oldAttachments = allAttachments;
+       
+       document.getElementById('tarikh-laporan-baru').value = editingReportState.tarikh;
+       document.getElementById('guru-select').value = laporan.guru;
+       document.getElementById('kelas-select').value = laporan.kelas;
+       document.getElementById('ulasan').value = textOnly;
+       
+       document.getElementById('laporan-form-title').innerText = "Kemaskini Laporan Sesi";
+       document.getElementById('btn-cancel-edit').classList.remove('hidden');
+       document.getElementById('btn-submit-report').innerHTML = '<i data-lucide="save" class="w-5 h-5"></i> Simpan Kemaskini Laporan';
+       
+       renderOldFiles();
+       switchReportTab('baru');
+       lucide.createIcons();
+       window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function cancelEditReport() {
+       editingReportState = null;
+       document.getElementById('ulasan').value = '';
+       document.getElementById('old-file-container').innerHTML = '';
+       document.getElementById('laporan-form-title').innerText = "Laporan Sesi & Dokumentasi";
+       document.getElementById('btn-cancel-edit').classList.add('hidden');
+       document.getElementById('btn-submit-report').innerHTML = '<i data-lucide="send" class="w-5 h-5"></i> Hantar Laporan Sesi';
+       checkLaporanDate();
     }
 
     function renderReportHistory(data, tarikhStr) {
@@ -908,12 +1027,12 @@
       data.forEach((laporan, index) => {
          const printId = `print-laporan-${index}`;
          
-         let textOnly = laporan.maklumat
-            .replace(/\[IMAGE\|.*?\](https?:\/\/[^\s<]+)/g, '')
-            .replace(/\[FILE\|.*?\](https?:\/\/[^\s<]+)/g, '')
-            .replace(/Lampiran:\s*/g, '')
-            .replace(/https?:\/\/[^\s<]+/g, '[Pautan Dibuang]') 
-            .trim();
+         let textOnly = "";
+         let ulasanMatch = laporan.maklumat.match(/Ulasan: ([\s\S]*?) \n\nLampiran:/);
+         if(ulasanMatch) textOnly = ulasanMatch[1];
+         else textOnly = laporan.maklumat.replace(/\[IMAGE\|.*?\](https?:\/\/[^\s<]+)/g, '').replace(/\[FILE\|.*?\](https?:\/\/[^\s<]+)/g, '').replace(/Lampiran:\s*/g, '').trim();
+         
+         if(textOnly === "Tiada") textOnly = "";
             
          let imageMatches = [...laporan.maklumat.matchAll(/\[IMAGE\|(.*?)\](https?:\/\/[^\s<]+)/g)].map(m => {
              let url = m[2];
@@ -963,7 +1082,7 @@
             imageMatches.forEach(img => {
                pdfImagesHtml += `
                   <div style="display: inline-block; width: ${collW}; margin: 10px 2%; border: 1px solid #ddd; padding: 5px; box-sizing: border-box; background: #fff; vertical-align: top;">
-                     <img src="${img.url}" style="width: 100%; height: 250px; object-fit: contain; display: block; margin: 0 auto;">
+                     <img src="${img.url}" data-print-img="true" style="width: 100%; height: 250px; object-fit: contain; display: block; margin: 0 auto;">
                      <p style="font-size: 10px; margin-top: 5px; color: #555; text-align: center;">${img.name}</p>
                   </div>
                `;
@@ -987,9 +1106,12 @@
          const card = document.createElement('div');
          card.className = 'neu-flat p-4 border border-yellow-500/20 mb-4 relative';
          card.innerHTML = `
-            <div class="border-b border-gray-700 pb-2 mb-3">
-              <h3 class="text-lg font-bold text-yellow-500">Laporan Sesi: ${laporan.kelas}</h3>
-              <p class="text-xs text-gray-400">Guru: ${laporan.guru} | Masa: ${laporan.timestamp}</p>
+            <div class="border-b border-gray-700 pb-2 mb-3 flex justify-between items-start">
+              <div>
+                <h3 class="text-lg font-bold text-yellow-500">Laporan Sesi: ${laporan.kelas}</h3>
+                <p class="text-xs text-gray-400">Guru: ${laporan.guru} | Masa: ${laporan.timestamp}</p>
+                <p class="text-xs text-gray-300 mt-1 font-semibold">Kehadiran Sesi: ${laporan.kehadiranSummary}</p>
+              </div>
             </div>
             ${uiTextHtml}
             ${uiAttachmentsHtml}
@@ -1014,6 +1136,10 @@
                 <tr>
                   <td style="padding: 8px; border: 1px solid #000; font-weight: bold; background-color: #f2f2f2;">Tarikh / Masa</td>
                   <td style="padding: 8px; border: 1px solid #000;">${displayTarikh} / ${laporan.timestamp}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px; border: 1px solid #000; font-weight: bold; background-color: #f2f2f2;">Kehadiran Sesi</td>
+                  <td style="padding: 8px; border: 1px solid #000;">${laporan.kehadiranSummary}</td>
                 </tr>
               </table>
 
@@ -1050,9 +1176,14 @@
               </div>
             </div>
 
-            <button onclick="cetakPDF('${printId}', '${laporan.kelas}', '${displayTarikh.replace(/\//g, '')}')" class="mt-4 w-full bg-gray-800 text-yellow-500 font-bold py-3 rounded-xl border border-yellow-500/30 flex justify-center items-center gap-2 hover:bg-gray-700 transition">
-              <i data-lucide="printer" class="w-5 h-5"></i> Jana PDF Laporan Secara Dinamik
-            </button>
+            <div class="flex gap-2 mt-4">
+              <button onclick="cetakPDF('${printId}', '${laporan.kelas}', '${displayTarikh.replace(/\//g, '')}')" class="flex-1 bg-gray-800 text-yellow-500 font-bold py-3 rounded-xl border border-yellow-500/30 flex justify-center items-center gap-2 hover:bg-gray-700 transition">
+                <i data-lucide="printer" class="w-5 h-5"></i> Cetak PDF Laporan
+              </button>
+              <button onclick="editLaporan(${index})" class="bg-blue-600 text-white font-bold px-4 py-3 rounded-xl border border-blue-500/30 flex justify-center items-center gap-2 hover:bg-blue-500 transition">
+                <i data-lucide="edit" class="w-5 h-5"></i> Edit
+              </button>
+            </div>
          `;
          container.appendChild(card);
       });
@@ -1063,9 +1194,8 @@
       const originalElement = document.getElementById(elementId);
       if(!originalElement) return;
       
-      setLoading(true, "Menjana PDF Laporan...");
+      setLoading(true, "Memproses Imej & Menjana PDF...");
       
-      // Pendekatan Pengklonan: Mengelakkan isu rendering 'display: none' dan paparan kosong (blank) pada html2canvas
       const printContainer = document.createElement('div');
       printContainer.style.position = 'absolute';
       printContainer.style.left = '-9999px';
@@ -1075,24 +1205,32 @@
       printContainer.style.zIndex = '-999';
 
       const clone = originalElement.cloneNode(true);
-      clone.style.display = 'block'; // Tunjuk kepada canvas tetapi diluar paparan skrin sebenar
+      clone.style.display = 'block'; 
       clone.id = elementId + '-clone';
 
       printContainer.appendChild(clone);
       document.body.appendChild(printContainer);
 
-      // Tunggu semua imej dimuatkan sepenuhnya dalam node klon
-      const images = clone.querySelectorAll('img');
+      // Bypass Canvas Tainting & CORS untuk Gambar Google Drive dengan menukar kepada Base64 melalui GAS Proxy
+      const images = clone.querySelectorAll('img[data-print-img="true"]');
       const imagePromises = Array.from(images).map(img => {
-        return new Promise(resolve => {
+        return new Promise(async resolve => {
+          if (img.src.includes('drive.google.com')) {
+             try {
+                 const res = await apiCall('getDriveImageBase64', { url: img.src });
+                 if (res.success && res.base64) {
+                     img.src = res.base64;
+                 }
+             } catch (e) {
+                 console.warn("Ralat Base64 Proxy untuk imej: ", img.src);
+             }
+          }
           if (img.complete) return resolve();
           img.onload = resolve;
-          img.onerror = () => {
-             console.warn("Imej gagal dimuat turun sebelum cetakan:", img.src);
-             resolve(); // Resolusi walaupun ralat supaya sistem cetak tidak hang
-          }; 
+          img.onerror = resolve; 
         });
       });
+      
       await Promise.all(imagePromises);
 
       const opt = {
@@ -1108,9 +1246,8 @@
         await html2pdf().set(opt).from(clone).save();
       } catch (e) {
         console.error(e);
-        customAlert("Terdapat ralat teknikal semasa menjana PDF. Pastikan talian internet stabil untuk memuatkan aset.");
+        customAlert("Terdapat ralat teknikal semasa menjana PDF. Pastikan talian internet stabil.");
       } finally {
-        // Pembersihan DOM selepas cetakan selesai
         document.body.removeChild(printContainer);
         setLoading(false);
       }
