@@ -1,0 +1,21 @@
+{
+  "name": "YAYASAN SULTAN AZLAN SHAH",
+  "short_name": "SMK SUNGAI BAYO",
+  "description": "Aplikasi web PWA inovatif untuk merekod kehadiran, markah bintang dan dokumentasi canggih dengan ciri penukaran ke PDF koperat dan imbasan Kod QR untuk fail dokumen secara terbuka.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#121212",
+  "theme_color": "#FFCC00",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/1046/logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/1046/logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
