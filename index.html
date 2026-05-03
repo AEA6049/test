@@ -16,7 +16,7 @@
     // KONFIGURASI UTAMA SISTEM (Ubah suai di sini)
     // ==========================================
     const APP_CONFIG = {
-      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbw9fn55e_a1V6_NL2D4-AHrHWOkbnViDPZx1zFSLlcNmtVyugnIjxwS06y46SG_cYiUaw/exec"
+      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbzlkr05Xtyngk4BWr2MVqWa41j9PCVZot9TcaxQjU3SEW-lc2sWNqAw31ksvWQocPTkQQ/exec"
     };
   </script>
   <style>
@@ -264,7 +264,7 @@
       <div class="space-y-4 text-sm text-gray-300">
         <p>⭐ <b>Prestasi & Integriti:</b> Sistem markah (guru & murid) HANYA sah untuk hari semasa sahaja. Kemaskini hari lepas hanya menyimpan rekod (0 point).</p>
         <p>🗺️ <b>Pemetaan GPS:</b> Koordinat GPS disimpan secara tersembunyi ke dalam Pangkalan Data untuk simpanan pentadbir.</p>
-        <p>📄 <b>Laporan & Cetakan:</b> Laporan disusun kemas (Top Aligned) tanpa sekatan gambar. Dokumen ditukar kepada bentuk kod QR secara automatik.</p>
+        <p>📄 <b>Laporan & Cetakan:</b> Laporan disusun kemas (Top Aligned) dengan fungsi automatik skala untuk elak isu terkeluar margin. Dokumen bertukar kepada bentuk kod QR.</p>
         <p>📝 <b>Kemaskini Rekod:</b> Laporan yang sudah dihantar kini boleh diedit semula bersama rekod kehadiran.</p>
       </div>
     </div>
@@ -1076,16 +1076,16 @@
 
          let uiTextHtml = `<div class="text-sm text-gray-200 mb-4 leading-relaxed">${textOnly.replace(/\n/g, '<br>')}</div>`;
 
-         // STRUKTUR HTML SOLID UNTUK CETAKAN PDF (Top-Aligned & Exclusive)
+         // STRUKTUR HTML SOLID UNTUK CETAKAN PDF (Top-Aligned, Responsive CSS & QR)
          let pdfImagesHtml = '';
          if (imageMatches.length > 0) {
             let collW = imageMatches.length === 1 ? '90%' : '45%';
-            pdfImagesHtml = `<div style="text-align: center; font-size: 0; margin: 0 auto; page-break-inside: avoid;">`;
+            pdfImagesHtml = `<div style="text-align: center; font-size: 0; margin: 0 auto; page-break-inside: avoid; max-width: 100%; box-sizing: border-box;">`;
             imageMatches.forEach(img => {
                pdfImagesHtml += `
                   <div style="display: inline-block; width: ${collW}; margin: 10px 2%; border: 1px solid #eaeaea; padding: 8px; box-sizing: border-box; background: #fafafa; vertical-align: top; border-radius: 4px;">
                      <img src="${img.url}" data-print-img="true" crossorigin="anonymous" style="width: 100%; max-height: 250px; object-fit: contain; display: block; margin: 0 auto; background: #fff;">
-                     <p style="font-size: 11px; margin: 8px 0 0 0; color: #666; text-align: center; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${img.name}</p>
+                     <p style="font-size: 11px; margin: 8px 0 0 0; color: #666; text-align: center; font-weight: 500; word-wrap: break-word;">${img.name}</p>
                   </div>
                `;
             });
@@ -1094,14 +1094,14 @@
 
          let pdfFilesHtml = '';
          if (fileMatches.length > 0) {
-            pdfFilesHtml = `<div style="text-align: center; font-size: 0; margin: 0 auto; page-break-inside: avoid;">`;
+            pdfFilesHtml = `<div style="text-align: center; font-size: 0; margin: 0 auto; page-break-inside: avoid; max-width: 100%; box-sizing: border-box;">`;
             fileMatches.forEach((file) => {
                 // Jana QR kod dengan pustaka QRious secara On The Fly
                 let qr = new QRious({ value: file.url, size: 200, level: 'M' });
                 let qrBase64 = qr.toDataURL('image/jpeg');
                 
                 pdfFilesHtml += `
-                <div style="width: 140px; text-align: center; border: 1px solid #ddd; padding: 10px; border-radius: 8px; background: #fafafa; display: inline-block; margin: 10px; vertical-align: top;">
+                <div style="width: 140px; text-align: center; border: 1px solid #ddd; padding: 10px; border-radius: 8px; background: #fafafa; display: inline-block; margin: 10px; vertical-align: top; box-sizing: border-box;">
                    <img src="${qrBase64}" style="width: 120px; height: 120px; margin: 0 auto; display: block;" />
                    <p style="font-size: 10px; margin: 8px 0 0 0; color: #333; word-wrap: break-word; line-height: 1.2;">${file.name}</p>
                    <p style="font-size: 9px; color: #888; margin-top: 4px; font-weight: bold;">Imbas Untuk Muat Turun</p>
@@ -1123,20 +1123,20 @@
             ${uiTextHtml}
             ${uiAttachmentsHtml}
             
-            <!-- TEMPLATE CETAKAN YANG DIKEMASKINI: Top Align, QR Code, dan Tiada Blank Page -->
-            <div id="${printId}" style="display: none; background: #ffffff; color: #333333; padding: 20px 30px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; position: relative; text-align: left; vertical-align: top; width: 100%; box-sizing: border-box;">
+            <!-- TEMPLATE CETAKAN YANG DIKEMASKINI: Max-width 100%, Word-wrap Fix -->
+            <div id="${printId}" style="display: none; background: #ffffff; color: #333333; padding: 20px 30px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; position: relative; text-align: left; vertical-align: top; width: 100%; max-width: 100%; box-sizing: border-box; overflow-wrap: break-word; word-wrap: break-word;">
                 <!-- Decorative Header Accent -->
                 <div style="position: absolute; top: 0; left: 0; right: 0; height: 10px; background: #FFCC00;"></div>
                 
                 <!-- Header -->
-                <div style="text-align: center; padding-bottom: 20px; border-bottom: 2px solid #FFCC00; margin-bottom: 30px; margin-top: 10px;">
+                <div style="text-align: center; padding-bottom: 20px; border-bottom: 2px solid #FFCC00; margin-bottom: 30px; margin-top: 10px; max-width: 100%;">
                     <h1 style="font-size: 26px; font-weight: 800; color: #111; margin: 0; letter-spacing: 1px;">YAYASAN SULTAN AZLAN SHAH</h1>
                     <h2 style="font-size: 16px; font-weight: 600; color: #555; margin: 5px 0 0 0; text-transform: uppercase;">SMK SUNGAI BAYO</h2>
                     <div style="display: inline-block; background: #111; color: #FFCC00; padding: 4px 15px; border-radius: 20px; font-size: 12px; font-weight: bold; margin-top: 10px;">LAPORAN DOKUMENTASI SESI PEMBELAJARAN</div>
                 </div>
 
-                <!-- Meta Info Table -->
-                <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 13px; page-break-inside: avoid;">
+                <!-- Meta Info Table - Added table-layout: fixed to prevent overflow -->
+                <table style="width: 100%; table-layout: fixed; word-wrap: break-word; border-collapse: collapse; margin-bottom: 30px; font-size: 13px; page-break-inside: avoid;">
                     <tr>
                         <td style="padding: 10px 15px; border: 1px solid #e0e0e0; font-weight: bold; width: 25%; background-color: #fafafa; color: #555;">Nama Guru</td>
                         <td style="padding: 10px 15px; border: 1px solid #e0e0e0; color: #222;">${laporan.guru}</td>
@@ -1151,15 +1151,15 @@
                     </tr>
                 </table>
 
-                <!-- Content Area (Ulasan) - Top Aligned -->
-                <div style="margin-bottom: 30px;">
+                <!-- Content Area (Ulasan) -->
+                <div style="margin-bottom: 30px; max-width: 100%;">
                     <h3 style="font-size: 14px; font-weight: bold; color: #111; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 15px; text-transform: uppercase;">1.0 Butiran Sesi & Ulasan</h3>
-                    <div style="font-size: 13px; line-height: 1.8; color: #333; text-align: justify; vertical-align: top; min-height: 60px; white-space: pre-wrap;">${textOnly || '<i>Tiada ulasan disediakan.</i>'}</div>
+                    <div style="font-size: 13px; line-height: 1.8; color: #333; text-align: justify; vertical-align: top; min-height: 60px; white-space: pre-wrap; word-break: break-word;">${textOnly || '<i>Tiada ulasan disediakan.</i>'}</div>
                 </div>
 
                 <!-- Images Area -->
                 ${pdfImagesHtml ? `
-                <div style="margin-bottom: 30px; page-break-inside: avoid;">
+                <div style="margin-bottom: 30px; page-break-inside: avoid; max-width: 100%; box-sizing: border-box;">
                     <h3 style="font-size: 14px; font-weight: bold; color: #111; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 15px; text-transform: uppercase;">2.0 Lampiran Bergambar</h3>
                     ${pdfImagesHtml}
                 </div>
@@ -1167,14 +1167,14 @@
 
                 <!-- Files Area (QR CODES) -->
                 ${pdfFilesHtml ? `
-                <div style="margin-bottom: 30px; page-break-inside: avoid;">
+                <div style="margin-bottom: 30px; page-break-inside: avoid; max-width: 100%; box-sizing: border-box;">
                     <h3 style="font-size: 14px; font-weight: bold; color: #111; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 15px; text-transform: uppercase;">3.0 Kod Imbasan Dokumen Sokongan</h3>
                     ${pdfFilesHtml}
                 </div>
                 ` : ''}
 
                 <!-- Signatures -->
-                <table style="width: 100%; margin-top: 50px; font-size: 13px; text-align: center; page-break-inside: avoid; border: none;">
+                <table style="width: 100%; margin-top: 50px; font-size: 13px; text-align: center; page-break-inside: avoid; border: none; table-layout: fixed;">
                     <tr>
                         <td style="width: 50%; padding-bottom: 60px; color: #555;">Disediakan Oleh,</td>
                         <td style="width: 50%; padding-bottom: 60px; color: #555;">Disemak & Disahkan Oleh,</td>
@@ -1217,16 +1217,18 @@
       setLoading(true, "Memproses Imej & Menjana PDF...");
       
       const printContainer = document.createElement('div');
-      // Menetapkan CSS absolut ke arah top kiri untuk elak isu menjunam (bottom-alignment)
+      // Menetapkan CSS absolut dan format yang lebih fleksibel untuk elak overflow
       printContainer.style.position = 'absolute';
       printContainer.style.left = '0';
       printContainer.style.top = '0';
-      printContainer.style.width = '794px'; // 794px is exactly A4 width at 96 DPI
+      printContainer.style.width = '800px'; 
+      printContainer.style.maxWidth = '100%'; 
       printContainer.style.background = '#ffffff';
       printContainer.style.zIndex = '-999';
       printContainer.style.margin = '0';
       printContainer.style.padding = '0';
       printContainer.style.textAlign = 'left';
+      printContainer.style.boxSizing = 'border-box';
 
       const clone = originalElement.cloneNode(true);
       clone.style.display = 'block'; 
@@ -1264,14 +1266,14 @@
       // Ekstra penangguhan bagi memastikan DOM telah render Base64 imej sepenuhnya
       await new Promise(r => setTimeout(r, 800));
 
-      // Menggunakan scrollY: 0 untuk memastikan tiada anjakan sewaktu mencetak
-      // Menetapkan margin kepada 0.1 inci mengikut kehendak pengguna
+      // Margin dinaikkan ke 0.4 inchi (~1cm) dan pagebreak logic ditambah untuk responsif A4 tanpa terpotong luar margin
       const opt = {
-        margin:       [0.1, 0.1, 0.1, 0.1],
+        margin:       [0.4, 0.4, 0.4, 0.4],
         filename:     `Laporan_${kelas.replace(/\s+/g, '_')}_${tarikh}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
         html2canvas:  { scale: 2, useCORS: true, logging: false, scrollY: 0, windowWidth: 800 },
-        jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+        jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' },
+        pagebreak:    { mode: ['css', 'legacy'] }
       };
       
       try {
