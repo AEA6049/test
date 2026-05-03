@@ -88,8 +88,8 @@
     }
     @media print {
       @page {
-        margin: 0; /* Buang header & footer lalai pelayar web */
         size: A4;
+        margin: 1.5cm 1.0cm 1.0cm 1.0cm; /* Top 1.5cm, Right 1.0cm, Bottom 1.0cm, Left 1.0cm */
       }
       body, html { 
         background: #ffffff !important; 
@@ -1222,7 +1222,7 @@
 
         const printArea = document.getElementById('print-area');
         printArea.innerHTML = `
-            <div style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1f2937; padding: 20mm; max-width: 800px; margin: 0 auto; background: #ffffff; min-height: 100vh;">
+            <div style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1f2937; padding: 0; width: 100%; margin: 0 auto; background: #ffffff;">
                 
                 <!-- Header Section -->
                 <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid #FFCC00; padding-bottom: 15px; margin-bottom: 30px;">
