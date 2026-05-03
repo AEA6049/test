@@ -14,7 +14,7 @@
     // KONFIGURASI UTAMA SISTEM (Ubah suai di sini)
     // ==========================================
     const APP_CONFIG = {
-      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbw9a-NBF_lfoj0MG4TSbhCML_h_BCyHA-FAlTGUxi8MKMIaqpPE0ooeWID1UOWZyGAuog/exec"
+      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbyzAiHGmJ4-QCIuP3ssf-09xRHu2-5r23DP_igLqfspFCAab0uftsJCBUhUyIR5XvP5/exec"
     };
   </script>
   <style>
@@ -1074,16 +1074,16 @@
 
          let uiTextHtml = `<div class="text-sm text-gray-200 mb-4 leading-relaxed">${textOnly.replace(/\n/g, '<br>')}</div>`;
 
-         // STRUKTUR HTML SOLID UNTUK CETAKAN PDF
+         // STRUKTUR HTML SOLID UNTUK CETAKAN PDF (Top-Aligned & Exclusive)
          let pdfImagesHtml = '';
          if (imageMatches.length > 0) {
-            let collW = imageMatches.length === 1 ? '90%' : '45%';
-            pdfImagesHtml = `<div style="text-align: center; font-size: 0;">`;
+            let collW = imageMatches.length === 1 ? '80%' : '45%';
+            pdfImagesHtml = `<div style="text-align: center; font-size: 0; margin: 0 -1%;">`;
             imageMatches.forEach(img => {
                pdfImagesHtml += `
-                  <div style="display: inline-block; width: ${collW}; margin: 10px 2%; border: 1px solid #ddd; padding: 5px; box-sizing: border-box; background: #fff; vertical-align: top;">
-                     <img src="${img.url}" data-print-img="true" style="width: 100%; height: 250px; object-fit: contain; display: block; margin: 0 auto;">
-                     <p style="font-size: 10px; margin-top: 5px; color: #555; text-align: center;">${img.name}</p>
+                  <div style="display: inline-block; width: ${collW}; margin: 10px 1%; border: 1px solid #eaeaea; padding: 8px; box-sizing: border-box; background: #fafafa; vertical-align: top; border-radius: 4px;">
+                     <img src="${img.url}" data-print-img="true" style="width: 100%; height: 200px; object-fit: contain; display: block; margin: 0 auto; background: #fff;">
+                     <p style="font-size: 11px; margin: 8px 0 0 0; color: #666; text-align: center; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${img.name}</p>
                   </div>
                `;
             });
@@ -1095,7 +1095,7 @@
             pdfFilesHtml = `<ul style="list-style-type: none; padding: 0; margin: 0;">`;
             fileMatches.forEach((file) => {
                 pdfFilesHtml += `
-                <li style="margin-bottom: 8px; font-size: 13px; color: #333; display: flex; align-items: center; border-bottom: 1px dashed #ccc; padding-bottom: 5px;">
+                <li style="margin-bottom: 8px; font-size: 13px; color: #333; display: flex; align-items: center; border-bottom: 1px dashed #eee; padding-bottom: 5px;">
                    <span style="margin-right: 10px; font-weight: bold;">📄</span>
                    <span style="word-break: break-all;">${file.name}</span>
                 </li>`;
@@ -1116,64 +1116,73 @@
             ${uiTextHtml}
             ${uiAttachmentsHtml}
             
-            <!-- TEMPLATE CETAKAN YANG DIKEMASKINI: Disesuaikan khas untuk mengelak blank PDF -->
-            <div id="${printId}" style="display: none; background: white; color: black; padding: 40px; font-family: 'Times New Roman', Times, serif;">
-              <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px;">
-                <h1 style="font-size: 24px; font-weight: bold; margin: 0; text-transform: uppercase;">YAYASAN SULTAN AZLAN SHAH</h1>
-                <h2 style="font-size: 18px; margin: 5px 0 0 0;">SMK SUNGAI BAYO</h2>
-                <p style="font-size: 14px; margin: 5px 0 0 0; font-style: italic;">LAPORAN DOKUMENTASI SESI PEMBELAJARAN</p>
-              </div>
-              
-              <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px;">
-                <tr>
-                  <td style="padding: 8px; border: 1px solid #000; font-weight: bold; width: 30%; background-color: #f2f2f2;">Nama Guru</td>
-                  <td style="padding: 8px; border: 1px solid #000;">${laporan.guru}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 8px; border: 1px solid #000; font-weight: bold; background-color: #f2f2f2;">Kelas</td>
-                  <td style="padding: 8px; border: 1px solid #000;">${laporan.kelas}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 8px; border: 1px solid #000; font-weight: bold; background-color: #f2f2f2;">Tarikh / Masa</td>
-                  <td style="padding: 8px; border: 1px solid #000;">${displayTarikh} / ${laporan.timestamp}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 8px; border: 1px solid #000; font-weight: bold; background-color: #f2f2f2;">Kehadiran Sesi</td>
-                  <td style="padding: 8px; border: 1px solid #000;">${laporan.kehadiranSummary}</td>
-                </tr>
-              </table>
-
-              <div style="margin-bottom: 20px;">
-                <h3 style="font-size: 16px; font-weight: bold; margin-bottom: 10px; background-color: #000; color: #fff; padding: 5px;">BUTIRAN SESI</h3>
-                <div style="font-size: 14px; line-height: 1.6; text-align: justify; padding: 15px; border: 1px solid #000; min-height: 100px; white-space: pre-wrap;">${textOnly || '<i>Tiada ulasan disediakan.</i>'}</div>
-              </div>
-              
-              ${pdfImagesHtml ? `
-              <div style="margin-top: 20px; page-break-inside: avoid;">
-                <h3 style="font-size: 16px; font-weight: bold; margin-bottom: 10px; background-color: #000; color: #fff; padding: 5px;">LAMPIRAN BERGAMBAR</h3>
-                ${pdfImagesHtml}
-              </div>
-              ` : ''}
-
-              ${pdfFilesHtml ? `
-              <div style="margin-top: 20px; page-break-inside: avoid;">
-                <h3 style="font-size: 16px; font-weight: bold; margin-bottom: 10px; background-color: #000; color: #fff; padding: 5px;">DOKUMEN SOKONGAN</h3>
-                ${pdfFilesHtml}
-              </div>
-              ` : ''}
-
-              <div style="margin-top: 50px; display: flex; justify-content: space-between; font-size: 14px; text-align: center; page-break-inside: avoid;">
-                <div style="width: 40%;">
-                  <p style="margin-bottom: 60px;">Disediakan Oleh,</p>
-                  <p style="font-weight: bold; border-top: 1px solid #000; padding-top: 5px;">(${laporan.guru})</p>
-                  <p>Guru Pembimbing</p>
+            <!-- TEMPLATE CETAKAN YANG DIKEMASKINI: Disesuaikan khas untuk mengelak blank PDF, Top Align, & Reka Bentuk Kemas -->
+            <div id="${printId}" style="display: none; background: #ffffff; color: #333333; padding: 40px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; position: relative;">
+                <!-- Decorative Header Accent -->
+                <div style="position: absolute; top: 0; left: 0; right: 0; height: 10px; background: #FFCC00;"></div>
+                
+                <!-- Header -->
+                <div style="text-align: center; padding-bottom: 20px; border-bottom: 2px solid #FFCC00; margin-bottom: 30px; margin-top: 20px;">
+                    <h1 style="font-size: 26px; font-weight: 800; color: #111; margin: 0; letter-spacing: 1px;">YAYASAN SULTAN AZLAN SHAH</h1>
+                    <h2 style="font-size: 16px; font-weight: 600; color: #555; margin: 5px 0 0 0; text-transform: uppercase;">SMK SUNGAI BAYO</h2>
+                    <div style="display: inline-block; background: #111; color: #FFCC00; padding: 4px 15px; border-radius: 20px; font-size: 12px; font-weight: bold; margin-top: 10px;">LAPORAN DOKUMENTASI SESI PEMBELAJARAN</div>
                 </div>
-                <div style="width: 40%;">
-                  <p style="margin-bottom: 60px;">Disemak & Disahkan Oleh,</p>
-                  <p style="font-weight: bold; border-top: 1px solid #000; padding-top: 5px;">Pihak Pengurusan</p>
-                  <p>Yayasan Sultan Azlan Shah</p>
+
+                <!-- Meta Info Table -->
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 13px;">
+                    <tr>
+                        <td style="padding: 10px 15px; border: 1px solid #e0e0e0; font-weight: bold; width: 25%; background-color: #fafafa; color: #555;">Nama Guru</td>
+                        <td style="padding: 10px 15px; border: 1px solid #e0e0e0; color: #222;">${laporan.guru}</td>
+                        <td style="padding: 10px 15px; border: 1px solid #e0e0e0; font-weight: bold; width: 20%; background-color: #fafafa; color: #555;">Kelas</td>
+                        <td style="padding: 10px 15px; border: 1px solid #e0e0e0; color: #222;">${laporan.kelas}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px 15px; border: 1px solid #e0e0e0; font-weight: bold; background-color: #fafafa; color: #555;">Tarikh / Masa</td>
+                        <td style="padding: 10px 15px; border: 1px solid #e0e0e0; color: #222;">${displayTarikh} / ${laporan.timestamp}</td>
+                        <td style="padding: 10px 15px; border: 1px solid #e0e0e0; font-weight: bold; background-color: #fafafa; color: #555;">Kehadiran Sesi</td>
+                        <td style="padding: 10px 15px; border: 1px solid #e0e0e0; color: #222;">${laporan.kehadiranSummary}</td>
+                    </tr>
+                </table>
+
+                <!-- Content Area (Ulasan) - Top Aligned -->
+                <div style="margin-bottom: 30px;">
+                    <h3 style="font-size: 14px; font-weight: bold; color: #111; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 15px; text-transform: uppercase;">1.0 Butiran Sesi & Ulasan</h3>
+                    <div style="font-size: 13px; line-height: 1.8; color: #333; text-align: justify; vertical-align: top; min-height: 80px; white-space: pre-wrap;">${textOnly || '<i>Tiada ulasan disediakan.</i>'}</div>
                 </div>
-              </div>
+
+                <!-- Images Area -->
+                ${pdfImagesHtml ? `
+                <div style="margin-bottom: 30px; page-break-inside: avoid;">
+                    <h3 style="font-size: 14px; font-weight: bold; color: #111; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 15px; text-transform: uppercase;">2.0 Lampiran Bergambar</h3>
+                    ${pdfImagesHtml}
+                </div>
+                ` : ''}
+
+                <!-- Files Area -->
+                ${pdfFilesHtml ? `
+                <div style="margin-bottom: 30px; page-break-inside: avoid;">
+                    <h3 style="font-size: 14px; font-weight: bold; color: #111; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 15px; text-transform: uppercase;">3.0 Dokumen Sokongan</h3>
+                    ${pdfFilesHtml}
+                </div>
+                ` : ''}
+
+                <!-- Signatures -->
+                <div style="margin-top: 50px; display: table; width: 100%; font-size: 13px; page-break-inside: avoid;">
+                    <div style="display: table-cell; width: 50%; text-align: left; padding-right: 20px;">
+                        <p style="margin-bottom: 60px; color: #555;">Disediakan Oleh,</p>
+                        <div style="border-top: 1px solid #333; width: 80%; padding-top: 5px;">
+                            <p style="font-weight: bold; margin: 0; color: #111;">${laporan.guru}</p>
+                            <p style="margin: 0; color: #777; font-size: 11px;">Guru Pembimbing</p>
+                        </div>
+                    </div>
+                    <div style="display: table-cell; width: 50%; text-align: left; padding-left: 20px;">
+                        <p style="margin-bottom: 60px; color: #555;">Disemak & Disahkan Oleh,</p>
+                        <div style="border-top: 1px solid #333; width: 80%; padding-top: 5px;">
+                            <p style="font-weight: bold; margin: 0; color: #111;">Pihak Pengurusan</p>
+                            <p style="margin: 0; color: #777; font-size: 11px;">Yayasan Sultan Azlan Shah</p>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div class="flex gap-2 mt-4">
@@ -1215,14 +1224,19 @@
       const images = clone.querySelectorAll('img[data-print-img="true"]');
       const imagePromises = Array.from(images).map(img => {
         return new Promise(async resolve => {
-          if (img.src.includes('drive.google.com')) {
+          const originalSrc = img.src;
+          if (originalSrc.includes('drive.google.com')) {
              try {
-                 const res = await apiCall('getDriveImageBase64', { url: img.src });
-                 if (res.success && res.base64) {
+                 const res = await apiCall('getDriveImageBase64', { url: originalSrc });
+                 if (res && res.success && res.base64) {
+                     // Assign onload SEBELUM menukar src untuk kepastian mutlak asynchronus
+                     img.onload = resolve;
+                     img.onerror = resolve;
                      img.src = res.base64;
+                     return; 
                  }
              } catch (e) {
-                 console.warn("Ralat Base64 Proxy untuk imej: ", img.src);
+                 console.warn("Ralat Base64 Proxy untuk imej: ", e);
              }
           }
           if (img.complete) return resolve();
@@ -1232,14 +1246,15 @@
       });
       
       await Promise.all(imagePromises);
+      // Ekstra penangguhan bagi memastikan DOM telah render Base64 imej sepenuhnya
+      await new Promise(r => setTimeout(r, 800));
 
       const opt = {
-        margin:       0.4,
+        margin:       [0.4, 0.4, 0.4, 0.4],
         filename:     `Laporan_${kelas.replace(/\s+/g, '_')}_${tarikh}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
         html2canvas:  { scale: 2, useCORS: true, logging: false },
-        jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' },
-        pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
+        jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
       };
       
       try {
