@@ -14,7 +14,7 @@
     // KONFIGURASI UTAMA SISTEM (Ubah suai di sini)
     // ==========================================
     const APP_CONFIG = {
-      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbwjEqWhRDogs2Db38hHrUvchxC1BPR9Bno1xJx7H1BCmcncEGp727pt-b9aXRYahbccAQ/exec"
+      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbxJdoQyB8ppDuptZXR3mHlR_e84Ya-No1Mom9YVZlDiOLzzTybflwgfTZXdQWcp_dvihA/exec"
     };
   </script>
   <style>
@@ -82,11 +82,15 @@
       cursor: pointer;
     }
 
-    /* PRINT STYLES UNTUK PDF BOLEH EDIT */
+    /* PRINT STYLES UNTUK PDF KOPERAT BOLEH EDIT */
     @media screen {
       #print-area { display: none; }
     }
     @media print {
+      @page {
+        margin: 0; /* Buang header & footer lalai pelayar web */
+        size: A4;
+      }
       body, html { 
         background: #ffffff !important; 
         color: #000000 !important; 
@@ -97,9 +101,6 @@
       #print-area { 
         display: block !important; 
         width: 100%;
-      }
-      @page {
-        margin: 15mm;
       }
       * {
         -webkit-print-color-adjust: exact !important;
@@ -1182,73 +1183,95 @@
 
         let imgHtml = '';
         if (imageMatches.length > 0) {
-            imgHtml = `<div style="margin-top: 20px;"><h4 style="font-size: 16px; font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 15px;">Lampiran Bergambar (Kolaj)</h4>`;
             let gridCols = imageMatches.length > 1 ? 'repeat(2, 1fr)' : '1fr';
             if(imageMatches.length >= 4) gridCols = 'repeat(3, 1fr)';
-            imgHtml += `<div style="display: grid; grid-template-columns: ${gridCols}; gap: 10px;">`;
+            imgHtml += `<div style="display: grid; grid-template-columns: ${gridCols}; gap: 15px;">`;
             
             for (let img of imageMatches) {
                 try {
                     let res = await apiCall('getDriveImageBase64', { url: img.url });
                     let finalSrc = (res && res.success) ? res.base64 : img.url;
-                    imgHtml += `<div style="aspect-ratio: 1; overflow: hidden; border: 1px solid #ddd; border-radius: 6px;">
+                    imgHtml += `<div style="aspect-ratio: 1; overflow: hidden; border: 1px solid #bdc3c7; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
                                     <img src="${finalSrc}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='https://placehold.co/400x400/eeeeee/999999?text=Gagal+Dimuatkan'">
                                 </div>`;
                 } catch(e) {
-                    imgHtml += `<div style="aspect-ratio: 1; overflow: hidden; border: 1px solid #ddd; border-radius: 6px;">
+                    imgHtml += `<div style="aspect-ratio: 1; overflow: hidden; border: 1px solid #bdc3c7; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
                                     <img src="${img.url}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='https://placehold.co/400x400/eeeeee/999999?text=Gagal+Dimuatkan'">
                                 </div>`;
                 }
             }
-            imgHtml += `</div></div>`;
+            imgHtml += `</div>`;
         }
 
         let fileHtml = '';
         if (fileMatches.length > 0) {
-            fileHtml = `<div style="margin-top: 20px;"><h4 style="font-size: 16px; font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 15px;">Pautan Fail Berdokumen (Imbas QR)</h4>
-            <div style="display: flex; flex-wrap: wrap; gap: 15px;">`;
+            fileHtml += `<div style="display: flex; flex-wrap: wrap; gap: 20px;">`;
             fileMatches.forEach(file => {
                 let qr = new QRious({ value: file.url, size: 120 });
-                fileHtml += `<div style="text-align: center; border: 1px solid #ddd; padding: 15px; border-radius: 8px; width: 140px;">
+                fileHtml += `<div style="text-align: center; border: 1px solid #bdc3c7; padding: 15px; border-radius: 4px; width: 150px; background: #fdfdfd; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
                                 <img src="${qr.toDataURL()}" style="margin: 0 auto; width: 100px; height: 100px;">
-                                <p style="font-size: 12px; word-break: break-all; margin-top: 10px; color: #333;">${file.name}</p>
+                                <p style="font-size: 11px; word-break: break-all; margin-top: 10px; color: #34495e; font-weight: 600;">${file.name}</p>
                              </div>`;
             });
-            fileHtml += `</div></div>`;
+            fileHtml += `</div>`;
         }
 
         const printArea = document.getElementById('print-area');
         printArea.innerHTML = `
-            <div style="font-family: Arial, sans-serif; color: #000; padding: 10px; line-height: 1.6;">
-                <div style="text-align: center; margin-bottom: 25px;">
-                    <h1 style="font-size: 22px; font-weight: bold; text-transform: uppercase; margin: 0;">YAYASAN SULTAN AZLAN SHAH</h1>
-                    <h2 style="font-size: 16px; font-weight: bold; color: #444; margin: 5px 0;">SMK SUNGAI BAYO</h2>
-                    <h3 style="font-size: 18px; font-weight: bold; margin-top: 20px; border-bottom: 2px solid #000; display: inline-block; padding-bottom: 5px;">LAPORAN SESI & DOKUMENTASI</h3>
+            <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; padding: 20mm; max-width: 800px; margin: 0 auto; background: white; min-height: 100vh;">
+                <!-- Header Koperat -->
+                <div style="text-align: center; border-bottom: 2px solid #2c3e50; padding-bottom: 20px; margin-bottom: 30px;">
+                    <h1 style="font-size: 24px; font-weight: 800; color: #2c3e50; margin: 0; letter-spacing: 1px;">YAYASAN SULTAN AZLAN SHAH</h1>
+                    <h2 style="font-size: 16px; font-weight: 600; color: #7f8c8d; margin: 5px 0 0 0;">SMK SUNGAI BAYO</h2>
+                    <div style="margin-top: 20px; display: inline-block; background: #2c3e50; color: white; padding: 8px 20px; border-radius: 4px; font-weight: bold; letter-spacing: 1px;">DOKUMENTASI SESI PELAPORAN</div>
                 </div>
 
-                <div style="display: flex; justify-content: space-between; margin-bottom: 25px; font-size: 14px; background: #f9f9f9 !important; padding: 15px; border-radius: 8px; border: 1px solid #ccc;">
-                    <div>
-                        <p style="margin: 4px 0;"><strong>Tarikh:</strong> ${displayTarikh}</p>
-                        <p style="margin: 4px 0;"><strong>Masa Laporan:</strong> ${laporan.timestamp}</p>
-                        <p style="margin: 4px 0;"><strong>Nama Guru:</strong> ${laporan.guru}</p>
-                        <p style="margin: 4px 0;"><strong>Kelas:</strong> ${laporan.kelas}</p>
+                <!-- Meta Maklumat Koperat -->
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 14px;">
+                    <tr>
+                        <td style="padding: 10px; border: 1px solid #ddd; background: #f8f9fa; font-weight: bold; width: 20%;">Tarikh</td>
+                        <td style="padding: 10px; border: 1px solid #ddd; width: 30%;">${displayTarikh}</td>
+                        <td style="padding: 10px; border: 1px solid #ddd; background: #f8f9fa; font-weight: bold; width: 20%;">Masa Laporan</td>
+                        <td style="padding: 10px; border: 1px solid #ddd; width: 30%;">${laporan.timestamp}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px; border: 1px solid #ddd; background: #f8f9fa; font-weight: bold;">Nama Guru</td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">${laporan.guru}</td>
+                        <td style="padding: 10px; border: 1px solid #ddd; background: #f8f9fa; font-weight: bold;">Kelas</td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">${laporan.kelas}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px; border: 1px solid #ddd; background: #f8f9fa; font-weight: bold;">Status Kehadiran</td>
+                        <td colspan="3" style="padding: 10px; border: 1px solid #ddd; font-weight: bold; color: #e74c3c;">${laporan.kehadiranSummary}</td>
+                    </tr>
+                </table>
+
+                <!-- Ulasan Sesi -->
+                <div style="margin-bottom: 30px;">
+                    <h3 style="font-size: 16px; font-weight: bold; color: #2c3e50; border-bottom: 1px solid #ecf0f1; padding-bottom: 8px; margin-bottom: 15px;">1.0 Ulasan Sesi</h3>
+                    <div style="padding: 15px; background: #fdfdfd; border: 1px solid #eee; border-radius: 4px; font-size: 14px; line-height: 1.6; white-space: pre-wrap;">${textOnly || 'Tiada ulasan disediakan.'}</div>
+                </div>
+
+                <!-- Lampiran Gambar -->
+                ${imgHtml ? `<div style="margin-bottom: 30px;"><h3 style="font-size: 16px; font-weight: bold; color: #2c3e50; border-bottom: 1px solid #ecf0f1; padding-bottom: 8px; margin-bottom: 15px;">2.0 Lampiran Bergambar</h3>${imgHtml}</div>` : ''}
+
+                <!-- Pautan Fail (QR) -->
+                ${fileHtml ? `<div style="margin-bottom: 30px;"><h3 style="font-size: 16px; font-weight: bold; color: #2c3e50; border-bottom: 1px solid #ecf0f1; padding-bottom: 8px; margin-bottom: 15px;">3.0 Dokumen Sokongan (Imbas Kod QR)</h3>${fileHtml}</div>` : ''}
+
+                <!-- Ruangan Tandatangan -->
+                <div style="margin-top: 60px; display: flex; justify-content: space-between; page-break-inside: avoid;">
+                    <div style="width: 40%; text-align: center;">
+                        <p style="font-size: 14px; color: #7f8c8d; margin-bottom: 60px;">Disediakan oleh,</p>
+                        <div style="border-bottom: 1px solid #333; margin-bottom: 5px;"></div>
+                        <p style="font-weight: bold; font-size: 14px; margin: 0;">${laporan.guru}</p>
+                        <p style="font-size: 12px; color: #7f8c8d; margin: 0;">Guru Sesi Akademik</p>
                     </div>
-                    <div style="text-align: right;">
-                        <p style="margin: 4px 0;"><strong>Status Kehadiran Sesi:</strong></p>
-                        <p style="margin: 4px 0; color: #d32f2f !important; font-weight: bold; font-size: 16px;">${laporan.kehadiranSummary}</p>
+                    <div style="width: 40%; text-align: center;">
+                        <p style="font-size: 14px; color: #7f8c8d; margin-bottom: 60px;">Disemak oleh,</p>
+                        <div style="border-bottom: 1px solid #333; margin-bottom: 5px;"></div>
+                        <p style="font-weight: bold; font-size: 14px; margin: 0;">&nbsp;</p>
+                        <p style="font-size: 12px; color: #7f8c8d; margin: 0;">Penyelaras / Pentadbir</p>
                     </div>
-                </div>
-
-                <div style="margin-bottom: 20px;">
-                    <h4 style="font-size: 16px; font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 10px;">Ulasan Sesi</h4>
-                    <p style="font-size: 14px; white-space: pre-wrap; color: #222;">${textOnly || '<i>Tiada ulasan disediakan.</i>'}</p>
-                </div>
-
-                ${imgHtml}
-                ${fileHtml}
-
-                <div style="margin-top: 40px; border-top: 1px dashed #ccc; padding-top: 15px; text-align: center; font-size: 11px; color: #777;">
-                    Janaan Automatik oleh Sistem PWA Yayasan Sultan Azlan Shah
                 </div>
             </div>
         `;
@@ -1295,9 +1318,7 @@
             if(res.success) {
                 customAlert(`Fail Ditemui: ${res.name}\n\nAkses: ${res.access}\nKebenaran: ${res.permission}\n\nJika akses adalah ANYONE_WITH_LINK, imbasan QR akan berfungsi tanpa masalah.`);
             } else {
-                customAlert(`Ralat: ${res.error}\n\nPastikan File ID dimasukkan adalah betul dan anda telah menjalankan fungsi 
-_authorizeDriveAccess
-di dalam editor GAS sekurang-kurangnya sekali.`);
+                customAlert(`Ralat: ${res.error}\n\nPastikan File ID dimasukkan adalah betul dan anda telah menjalankan fungsi \n_authorizeDriveAccess\ndi dalam editor GAS sekurang-kurangnya sekali.`);
             }
         }).catch(err => {
             setLoading(false);
