@@ -16,7 +16,7 @@
     // KONFIGURASI UTAMA SISTEM (Ubah suai di sini)
     // ==========================================
     const APP_CONFIG = {
-      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbzyLkFjxEaupxcwZ84SF-uGhwKEISR2nh6Y27HvOBzsFCf4C7FUU9J3Jkgfv26Rh_6Y3w/exec"
+      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbw9a-NBF_lfoj0MG4TSbhCML_h_BCyHA-FAlTGUxi8MKMIaqpPE0ooeWID1UOWZyGAuog/exec"
     };
   </script>
   <style>
@@ -93,7 +93,6 @@
       <h3 class="font-bold text-xl mb-4 text-yellow-500" id="custom-modal-title">Notis Sistem</h3>
       <p class="text-gray-200 mb-6 font-semibold" id="custom-modal-message"></p>
       <div id="custom-modal-actions" class="flex gap-3 justify-center">
-        <!-- Buttons injected via JS -->
       </div>
     </div>
   </div>
@@ -1238,44 +1237,37 @@
       
       setLoading(true, "Memproses Imej & Menjana PDF...");
       
-      // Memastikan elemen rendering sentiasa "visible" di mata DOM supaya tidak menjadi Blank PDF,
-      // namun disembunyikan menggunakan manipulasi z-index mutlak di belakang Overlay Loading
-      const printContainer = document.createElement('div');
-      printContainer.style.position = 'absolute';
-      printContainer.style.left = '0';
-      printContainer.style.top = '0';
-      printContainer.style.width = '800px';
-      printContainer.style.background = '#ffffff';
-      printContainer.style.zIndex = '50'; // Dipapar di bawah z-[100] overlay loading Tailwind
-      printContainer.style.padding = '0';
-      
       const clone = originalElement.cloneNode(true);
       clone.style.display = 'block'; 
       clone.id = elementId + '-clone';
-      clone.style.width = '100%';
-      
-      printContainer.appendChild(clone);
-      document.body.appendChild(printContainer);
+      clone.style.width = '800px';
+      clone.style.background = '#ffffff';
 
-      // Menukar URL imej ke format Base64 secara On-The-Fly bagi mengelak isu CORS/Tainting ketika rendering
-      const images = clone.querySelectorAll('img[data-print-img="true"]');
+      const hiddenContainer = document.createElement('div');
+      hiddenContainer.style.position = 'absolute';
+      hiddenContainer.style.left = '-9999px';
+      hiddenContainer.style.top = '-9999px';
+      hiddenContainer.appendChild(clone);
+      document.body.appendChild(hiddenContainer);
+
+      const images = clone.querySelectorAll('img');
       const imagePromises = Array.from(images).map(img => {
         return new Promise(async resolve => {
-          img.crossOrigin = 'anonymous';
           const originalSrc = img.src;
           if (originalSrc.includes('drive.google.com') || originalSrc.includes('googleusercontent.com')) {
              try {
                  const res = await apiCall('getDriveImageBase64', { url: originalSrc });
                  if (res && res.success && res.base64) {
-                     img.removeAttribute('crossorigin');
+                     img.src = res.base64;
                      img.onload = resolve;
                      img.onerror = resolve;
-                     img.src = res.base64;
                      return; 
                  }
              } catch (e) {
                  console.warn("Ralat Base64 Proxy: ", e);
              }
+          } else {
+             img.crossOrigin = 'anonymous';
           }
           if (img.complete) return resolve();
           img.onload = resolve;
@@ -1284,25 +1276,30 @@
       });
       
       await Promise.all(imagePromises);
-      // Ekstra penangguhan bagi memastikan semua elemen DOM & Canvas matang sebelum dirakam
-      await new Promise(r => setTimeout(r, 1000));
+      await new Promise(r => setTimeout(r, 1500));
 
       const opt = {
-        margin:       [0, 0, 0, 0], // Margin ditetapkan sifar kerana padding 40px telah diset pada parent div templat
+        margin:       [10, 0, 10, 0],
         filename:     `Laporan_${kelas.replace(/\s+/g, '_')}_${tarikh}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true, windowWidth: 800 },
+        html2canvas:  { 
+            scale: 2, 
+            useCORS: true, 
+            windowWidth: 800,
+            scrollY: 0,
+            scrollX: 0
+        },
         jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
       };
       
       try {
-        await html2pdf().set(opt).from(printContainer).save();
+        await html2pdf().set(opt).from(clone).save();
       } catch (e) {
         console.error(e);
         customAlert("Terdapat ralat teknikal semasa menjana PDF. Pastikan talian internet stabil.");
       } finally {
-        if(document.body.contains(printContainer)) {
-           document.body.removeChild(printContainer);
+        if(document.body.contains(hiddenContainer)) {
+           document.body.removeChild(hiddenContainer);
         }
         setLoading(false);
       }
