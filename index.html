@@ -17,7 +17,7 @@
     // KONFIGURASI UTAMA SISTEM (Ubah suai di sini)
     // ==========================================
     const APP_CONFIG = {
-      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbxLBTghUQy0V2r8dxNLknDaRBA1S_6KWfrwiQ1NiN_XEXrlOGxjv1uhTMP-1HpeZhFudw/exec"
+      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbyUIjxsKxxQSdV6u9F61WGSJgJL9UqoiNHmH2r1ah9lWXAn75YjOPJflY9zmfmDfsPYkQ/exec"
     };
   </script>
   <style>
@@ -206,8 +206,8 @@
 
       <div id="attendance-summary" class="neu-flat p-4 mt-6 text-center font-bold text-yellow-500 hidden border border-yellow-500/20"></div>
 
-      <button onclick="submitAttendance()" class="w-full mt-6 py-4 text-lg font-bold rounded-2xl neu-btn-gold flex justify-center items-center gap-2">
-        <i data-lucide="clipboard-check" class="w-5 h-5"></i> Simpan Kemaskini Markah
+      <button id="btn-submit-kehadiran" onclick="submitAttendance()" class="w-full mt-6 py-4 text-lg font-bold rounded-2xl neu-btn-gold flex justify-center items-center gap-2">
+        <i data-lucide="clipboard-check" class="w-5 h-5"></i> Simpan Kehadiran Murid
       </button>
     </section>
 
@@ -561,16 +561,39 @@
       const selectedKelas = document.getElementById('kelas-select').value;
       const tarikhPilihan = document.getElementById('tarikh-kehadiran').value;
       const todayStr = getTodayString();
+      const btnSubmit = document.getElementById('btn-submit-kehadiran');
       
       if(!selectedKelas) {
         container.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">Sila pilih kelas untuk papar senarai.</p>';
         updateAttendanceSummary();
+        if(btnSubmit) btnSubmit.innerHTML = '<i data-lucide="clipboard-check" class="w-5 h-5"></i> Simpan Kehadiran Murid';
+        lucide.createIcons();
         return;
       }
       
       const filtered = students.filter(s => s.kelas === selectedKelas);
+      
+      // SUSUNAN NAMA MURID A-Z
+      filtered.sort((a, b) => a.nama.localeCompare(b.nama));
+      
       if(filtered.length === 0) {
         container.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">Tiada nama di dalam kelas ini.</p>';
+        if(btnSubmit) btnSubmit.innerHTML = '<i data-lucide="clipboard-check" class="w-5 h-5"></i> Simpan Kehadiran Murid';
+      } else {
+        let attendanceTaken = false;
+        if (tarikhPilihan === todayStr) {
+            attendanceTaken = filtered.some(s => s.tarikhTerakhir === todayStr);
+        } else {
+            attendanceTaken = (currentHistoryData && currentHistoryData.length > 0);
+        }
+        
+        if (btnSubmit) {
+            if (attendanceTaken) {
+                btnSubmit.innerHTML = '<i data-lucide="clipboard-check" class="w-5 h-5"></i> Simpan Kemaskini Markah';
+            } else {
+                btnSubmit.innerHTML = '<i data-lucide="clipboard-check" class="w-5 h-5"></i> Simpan Kehadiran Murid';
+            }
+        }
       }
       
       let historyMap = {};
