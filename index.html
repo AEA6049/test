@@ -7,8 +7,6 @@
   <link rel="manifest" href="manifest.json">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
-  <!-- Pustaka html2pdf untuk cetakan PDF Laporan -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <!-- Pustaka QRious untuk Jana QR Code Automatik -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
   <script>
@@ -16,7 +14,7 @@
     // KONFIGURASI UTAMA SISTEM (Ubah suai di sini)
     // ==========================================
     const APP_CONFIG = {
-      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbxqe8iIyi-4h3rW_u9ZCB7ULnIVon9-1xiwPSurZTPnEGEOOoO33vRrgdwcrjFqikQ0ag/exec"
+      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbxJdoQyB8ppDuptZXR3mHlR_e84Ya-No1Mom9YVZlDiOLzzTybflwgfTZXdQWcp_dvihA/exec"
     };
   </script>
   <style>
@@ -263,7 +261,7 @@
       <div class="space-y-4 text-sm text-gray-300">
         <p>⭐ <b>Prestasi & Integriti:</b> Sistem markah (guru & murid) HANYA sah untuk hari semasa sahaja. Kemaskini hari lepas hanya menyimpan rekod (0 point).</p>
         <p>🗺️ <b>Pemetaan GPS:</b> Koordinat GPS disimpan secara tersembunyi ke dalam Pangkalan Data untuk simpanan pentadbir.</p>
-        <p>📄 <b>Laporan & Cetakan:</b> Laporan disusun kemas dengan kelebaran tetapan A4 sebenar. Gambar Google Drive dipintasi dengan selamat (tiada Ralat 403).</p>
+        <p>📄 <b>Dokumentasi Berpusat:</b> Laporan disusun kemas. Gambar Google Drive dipintasi dengan selamat (tiada Ralat 403).</p>
         <p>📝 <b>Kemaskini Rekod:</b> Laporan yang sudah dihantar kini boleh diedit semula bersama rekod kehadiran.</p>
       </div>
     </div>
@@ -1042,7 +1040,6 @@
       }
 
       data.forEach((laporan, index) => {
-         const printId = `print-laporan-${index}`;
          
          let textOnly = "";
          let ulasanMatch = laporan.maklumat.match(/Ulasan: ([\s\S]*?) \n\nLampiran:/);
@@ -1091,39 +1088,6 @@
 
          let uiTextHtml = `<div class="text-sm text-gray-200 mb-4 leading-relaxed">${textOnly.replace(/\n/g, '<br>')}</div>`;
 
-         // STRUKTUR HTML EKSKLUSIF & MODEN UNTUK CETAKAN PDF
-         let pdfImagesHtml = '';
-         if (imageMatches.length > 0) {
-            let collW = imageMatches.length === 1 ? '100%' : '48%';
-            pdfImagesHtml = `<div style="text-align: left; font-size: 0; width: 100%; box-sizing: border-box; margin-bottom: 20px;">`;
-            imageMatches.forEach(img => {
-               pdfImagesHtml += `
-                  <div style="display: inline-block; width: ${collW}; margin-right: ${imageMatches.length === 1 ? '0' : '2%'}; margin-bottom: 15px; border: 1px solid #e5e7eb; padding: 10px; box-sizing: border-box; background: #ffffff; vertical-align: top; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                     <img src="${img.url}" data-print-img="true" style="width: 100%; max-height: 280px; object-fit: contain; display: block; margin: 0 auto; border-radius: 4px;">
-                     <p style="font-size: 12px; margin: 10px 0 0 0; color: #4b5563; text-align: center; font-weight: 600; word-wrap: break-word;">${img.name}</p>
-                  </div>
-               `;
-            });
-            pdfImagesHtml += `</div>`;
-         }
-
-         let pdfFilesHtml = '';
-         if (fileMatches.length > 0) {
-            pdfFilesHtml = `<div style="text-align: left; font-size: 0; width: 100%; box-sizing: border-box;">`;
-            fileMatches.forEach((file) => {
-                let qr = new QRious({ value: file.url, size: 250, level: 'M' });
-                let qrBase64 = qr.toDataURL('image/jpeg');
-                
-                pdfFilesHtml += `
-                <div style="width: 150px; text-align: center; border: 1px solid #e5e7eb; padding: 15px; border-radius: 12px; background: #ffffff; display: inline-block; margin-right: 15px; margin-bottom: 15px; vertical-align: top; box-sizing: border-box; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                   <img src="${qrBase64}" style="width: 120px; height: 120px; margin: 0 auto; display: block; border-radius: 8px;" />
-                   <p style="font-size: 11px; margin: 10px 0 0 0; color: #111827; word-wrap: break-word; line-height: 1.3; font-weight: 600;">${file.name}</p>
-                   <p style="font-size: 10px; color: #6b7280; margin-top: 6px; font-weight: bold; background: #f3f4f6; padding: 4px; border-radius: 4px;">Imbas QR</p>
-                </div>`;
-            });
-            pdfFilesHtml += `</div>`;
-         }
-
          const card = document.createElement('div');
          card.className = 'neu-flat p-4 border border-yellow-500/20 mb-4 relative';
          card.innerHTML = `
@@ -1137,172 +1101,15 @@
             ${uiTextHtml}
             ${uiAttachmentsHtml}
             
-            <!-- TEMPLATE CETAKAN YANG DIKEMASKINI: Moden, Eksklusif & Stabil -->
-            <div id="${printId}" style="display: none; background: #ffffff; color: #1f2937; padding: 40px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; position: relative; text-align: left; vertical-align: top; width: 800px; box-sizing: border-box; overflow-wrap: break-word; word-wrap: break-word; margin: 0 auto; line-height: 1.6;">
-                
-                <!-- Decorative Top Border -->
-                <div style="position: absolute; top: 0; left: 0; width: 100%; height: 12px; background: #D4AF37;"></div>
-                
-                <!-- Header -->
-                <div style="text-align: center; border-bottom: 2px solid #e5e7eb; padding-bottom: 25px; margin-bottom: 30px; margin-top: 10px;">
-                    <h1 style="font-size: 28px; font-weight: 800; color: #111827; margin: 0; letter-spacing: 1px;">YAYASAN SULTAN AZLAN SHAH</h1>
-                    <h2 style="font-size: 18px; font-weight: 600; color: #4B5563; margin: 8px 0 0 0; text-transform: uppercase; letter-spacing: 2px;">SMK SUNGAI BAYO</h2>
-                    <div style="margin-top: 20px;">
-                        <span style="background: #111827; color: #D4AF37; padding: 8px 24px; border-radius: 50px; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">Dokumentasi Sesi Pembelajaran</span>
-                    </div>
-                </div>
-
-                <!-- Meta Info Table -->
-                <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; margin-bottom: 35px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                    <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
-                        <tr>
-                            <td style="padding: 10px 5px; width: 22%; color: #6b7280; font-weight: 600; text-transform: uppercase;">Nama Guru</td>
-                            <td style="padding: 10px 5px; width: 28%; color: #111827; font-weight: 700;">: ${laporan.guru}</td>
-                            <td style="padding: 10px 5px; width: 22%; color: #6b7280; font-weight: 600; text-transform: uppercase;">Kelas</td>
-                            <td style="padding: 10px 5px; width: 28%; color: #111827; font-weight: 700;">: ${laporan.kelas}</td>
-                        </tr>
-                        <tr>
-                            <td style="padding: 10px 5px; color: #6b7280; font-weight: 600; text-transform: uppercase;">Tarikh / Masa</td>
-                            <td style="padding: 10px 5px; color: #111827; font-weight: 700;">: ${displayTarikh} &nbsp;|&nbsp; ${laporan.timestamp}</td>
-                            <td style="padding: 10px 5px; color: #6b7280; font-weight: 600; text-transform: uppercase;">Kehadiran</td>
-                            <td style="padding: 10px 5px; color: #111827; font-weight: 700;">: ${laporan.kehadiranSummary}</td>
-                        </tr>
-                    </table>
-                </div>
-
-                <!-- Content Area (Ulasan) -->
-                <div style="margin-bottom: 35px;">
-                    <h3 style="font-size: 15px; font-weight: 800; color: #111827; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 1px; display: inline-block;">1.0 Butiran & Ulasan Sesi</h3>
-                    <div style="background: #ffffff; border-left: 4px solid #D4AF37; padding: 15px 20px; font-size: 14px; line-height: 1.8; color: #374151; text-align: justify; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border-radius: 0 8px 8px 0; white-space: pre-wrap; word-break: break-word;">${textOnly || '<i>Tiada ulasan disediakan.</i>'}</div>
-                </div>
-
-                <!-- Images Area -->
-                ${pdfImagesHtml ? `
-                <div style="margin-bottom: 35px; page-break-inside: avoid;">
-                    <h3 style="font-size: 15px; font-weight: 800; color: #111827; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 1px; display: inline-block;">2.0 Lampiran Bergambar</h3>
-                    <div style="margin-top: 10px;">${pdfImagesHtml}</div>
-                </div>
-                ` : ''}
-
-                <!-- Files Area (QR CODES) -->
-                ${pdfFilesHtml ? `
-                <div style="margin-bottom: 35px; page-break-inside: avoid;">
-                    <h3 style="font-size: 15px; font-weight: 800; color: #111827; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 1px; display: inline-block;">3.0 Dokumen Sokongan</h3>
-                    <div style="margin-top: 10px;">${pdfFilesHtml}</div>
-                </div>
-                ` : ''}
-
-                <!-- Signatures -->
-                <div style="margin-top: 60px; page-break-inside: avoid;">
-                    <table style="width: 100%; text-align: center; border: none; font-size: 14px;">
-                        <tr>
-                            <td style="width: 50%; padding-bottom: 80px; color: #4B5563; font-weight: 600;">Disediakan Oleh,</td>
-                            <td style="width: 50%; padding-bottom: 80px; color: #4B5563; font-weight: 600;">Disemak & Disahkan Oleh,</td>
-                        </tr>
-                        <tr>
-                            <td>
-                                <div style="border-top: 1px solid #111827; width: 65%; margin: 0 auto; padding-top: 10px;">
-                                    <strong style="color: #111827; font-size: 15px; text-transform: uppercase;">${laporan.guru}</strong><br>
-                                    <span style="font-size: 13px; color: #6b7280;">Guru Pembimbing</span>
-                                </div>
-                            </td>
-                            <td>
-                                <div style="border-top: 1px solid #111827; width: 65%; margin: 0 auto; padding-top: 10px;">
-                                    <strong style="color: #111827; font-size: 15px; text-transform: uppercase;">Pihak Pengurusan</strong><br>
-                                    <span style="font-size: 13px; color: #6b7280;">Yayasan Sultan Azlan Shah</span>
-                                </div>
-                            </td>
-                        </tr>
-                    </table>
-                </div>
-            </div>
-
             <div class="flex gap-2 mt-4">
-              <button onclick="cetakPDF('${printId}', '${laporan.kelas}', '${displayTarikh.replace(/\//g, '')}')" class="flex-1 bg-gray-800 text-yellow-500 font-bold py-3 rounded-xl border border-yellow-500/30 flex justify-center items-center gap-2 hover:bg-gray-700 transition">
-                <i data-lucide="printer" class="w-5 h-5"></i> Cetak PDF Laporan
-              </button>
-              <button onclick="editLaporan(${index})" class="bg-blue-600 text-white font-bold px-4 py-3 rounded-xl border border-blue-500/30 flex justify-center items-center gap-2 hover:bg-blue-500 transition">
-                <i data-lucide="edit" class="w-5 h-5"></i> Edit
+              <button onclick="editLaporan(${index})" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl border border-blue-500/30 flex justify-center items-center gap-2 hover:bg-blue-500 transition">
+                <i data-lucide="edit" class="w-5 h-5"></i> Edit Laporan
               </button>
             </div>
          `;
          container.appendChild(card);
       });
       lucide.createIcons();
-    }
-
-    async function cetakPDF(elementId, kelas, tarikh) {
-      const originalElement = document.getElementById(elementId);
-      if(!originalElement) return;
-      
-      setLoading(true, "Memproses Imej & Menjana PDF...");
-      
-      const clone = originalElement.cloneNode(true);
-      clone.style.display = 'block'; 
-      clone.id = elementId + '-clone';
-      clone.style.width = '800px';
-      clone.style.background = '#ffffff';
-
-      const hiddenContainer = document.createElement('div');
-      hiddenContainer.style.position = 'absolute';
-      hiddenContainer.style.left = '-9999px';
-      hiddenContainer.style.top = '-9999px';
-      hiddenContainer.appendChild(clone);
-      document.body.appendChild(hiddenContainer);
-
-      const images = clone.querySelectorAll('img');
-      const imagePromises = Array.from(images).map(img => {
-        return new Promise(async resolve => {
-          const originalSrc = img.src;
-          if (originalSrc.includes('drive.google.com') || originalSrc.includes('googleusercontent.com')) {
-             try {
-                 const res = await apiCall('getDriveImageBase64', { url: originalSrc });
-                 if (res && res.success && res.base64) {
-                     img.src = res.base64;
-                     img.onload = resolve;
-                     img.onerror = resolve;
-                     return; 
-                 }
-             } catch (e) {
-                 console.warn("Ralat Base64 Proxy: ", e);
-             }
-          } else {
-             img.crossOrigin = 'anonymous';
-          }
-          if (img.complete) return resolve();
-          img.onload = resolve;
-          img.onerror = resolve; 
-        });
-      });
-      
-      await Promise.all(imagePromises);
-      await new Promise(r => setTimeout(r, 1500));
-
-      const opt = {
-        margin:       [10, 0, 10, 0],
-        filename:     `Laporan_${kelas.replace(/\s+/g, '_')}_${tarikh}.pdf`,
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { 
-            scale: 2, 
-            useCORS: true, 
-            windowWidth: 800,
-            scrollY: 0,
-            scrollX: 0
-        },
-        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-      };
-      
-      try {
-        await html2pdf().set(opt).from(clone).save();
-      } catch (e) {
-        console.error(e);
-        customAlert("Terdapat ralat teknikal semasa menjana PDF. Pastikan talian internet stabil.");
-      } finally {
-        if(document.body.contains(hiddenContainer)) {
-           document.body.removeChild(hiddenContainer);
-        }
-        setLoading(false);
-      }
     }
 
     function setLoading(show, text = "Memuat...") {
