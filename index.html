@@ -14,7 +14,7 @@
     // KONFIGURASI UTAMA SISTEM (Ubah suai di sini)
     // ==========================================
     const APP_CONFIG = {
-      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbwEp2uvAAHOHx9EEfWuiftcyJMV_pMHD7PY-hgjwb4Z1azLAWRsBapRLiXAi9xRcal1eQ/exec"
+      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbyUIjxsKxxQSdV6u9F61WGSJgJL9UqoiNHmH2r1ah9lWXAn75YjOPJflY9zmfmDfsPYkQ/exec"
     };
   </script>
   <style>
@@ -119,6 +119,16 @@
       <p class="text-gray-200 mb-6 font-semibold" id="custom-modal-message"></p>
       <div id="custom-modal-actions" class="flex gap-3 justify-center">
       </div>
+    </div>
+  </div>
+
+  <!-- Full Size Image Modal -->
+  <div id="full-image-modal" class="fixed inset-0 z-[300] p-4 hidden flex items-center justify-center bg-black/90 backdrop-blur-xl" onclick="closeFullImage()">
+    <div class="relative max-w-2xl w-full flex justify-center" onclick="event.stopPropagation()">
+       <img id="full-image-preview" src="" class="max-w-full max-h-[80vh] object-contain rounded-2xl border-4 border-yellow-500 shadow-2xl">
+       <button onclick="closeFullImage()" class="absolute -top-12 right-0 md:-right-12 text-yellow-500 font-bold bg-black/50 rounded-full p-2 hover:bg-gray-800 transition">
+          <i data-lucide="x" class="w-8 h-8"></i>
+       </button>
     </div>
   </div>
 
@@ -259,11 +269,23 @@
   </main>
 
   <!-- Modal Tambah/Edit Murid -->
-  <div id="murid-modal" class="fixed inset-0 z-50 p-4 hidden flex items-center justify-center bg-black/80 backdrop-blur-md">
+  <div id="murid-modal" class="fixed inset-0 z-[150] p-4 hidden flex items-center justify-center bg-black/80 backdrop-blur-md">
     <div class="glass-panel w-full max-w-sm p-6 relative">
-      <h3 id="murid-modal-title" class="font-bold text-xl mb-4 text-yellow-500">Tambah Murid</h3>
+      <h3 id="murid-modal-title" class="font-bold text-xl mb-4 text-yellow-500 text-center">Tambah Murid</h3>
       <input type="hidden" id="murid-modal-oldnama">
       
+      <!-- RUANGAN GAMBAR AVATAR -->
+      <div class="mb-6 text-center">
+        <div class="relative inline-block">
+          <img id="murid-modal-img-preview" src="https://ui-avatars.com/api/?name=X&background=2a2a2a&color=FFCC00" class="w-24 h-24 rounded-full object-cover border-4 border-gray-800 shadow-lg mx-auto cursor-pointer hover:border-yellow-500 transition-colors" onclick="document.getElementById('murid-modal-gambar').click()">
+          <div class="absolute bottom-0 right-0 bg-yellow-500 text-black p-2 rounded-full cursor-pointer shadow-lg hover:scale-110 transition-transform" onclick="document.getElementById('murid-modal-gambar').click()">
+            <i data-lucide="camera" class="w-4 h-4"></i>
+          </div>
+        </div>
+        <p class="text-xs text-yellow-500 font-bold mt-2">+1 Point untuk upload gambar!</p>
+        <input type="file" id="murid-modal-gambar" accept="image/*" capture="environment" class="hidden" onchange="handleMuridImageSelect(this)">
+      </div>
+
       <label class="block text-sm font-bold mb-1 text-gray-300">Nama Murid</label>
       <input type="text" id="murid-modal-nama" class="w-full p-3 neu-pressed outline-none mb-4" placeholder="Cth: Ali Bin Abu">
       
@@ -282,7 +304,7 @@
   </div>
 
   <!-- Admin Secret Panel -->
-  <div id="admin-panel" class="fixed inset-0 z-50 p-4 hidden flex items-center justify-center bg-black/80 backdrop-blur-md">
+  <div id="admin-panel" class="fixed inset-0 z-[150] p-4 hidden flex items-center justify-center bg-black/80 backdrop-blur-md">
     <div class="glass-panel w-full max-w-lg p-6 relative">
       <button onclick="closeAdmin()" class="absolute top-4 right-4 text-yellow-500 font-bold bg-black/50 rounded-full p-2 hover:bg-gray-800">
         <i data-lucide="x" class="w-5 h-5"></i>
@@ -291,8 +313,8 @@
       <div class="space-y-4 text-sm text-gray-300">
         <p>⭐ <b>Prestasi & Integriti:</b> Sistem markah (guru & murid) HANYA sah untuk hari semasa sahaja. Kemaskini hari lepas hanya menyimpan rekod (0 point).</p>
         <p>🗺️ <b>Pemetaan GPS:</b> Koordinat GPS disimpan secara tersembunyi ke dalam Pangkalan Data untuk simpanan pentadbir.</p>
+        <p>📷 <b>Wajah Murid:</b> Memuat naik gambar pelajar akan memberikan 1 mata (point) secara automatik kepada guru untuk menggalakkan cakna pelajar.</p>
         <p>📄 <b>Dokumentasi Berpusat:</b> Laporan disusun kemas. Gambar Google Drive dipintasi dengan selamat (tiada Ralat 403).</p>
-        <p>📝 <b>Kemaskini Rekod:</b> Laporan yang sudah dihantar kini boleh diedit semula bersama rekod kehadiran.</p>
       </div>
       <div class="mt-4 border-t border-gray-700 pt-4">
         <p class="text-sm font-bold text-yellow-500 mb-2">Ujian Akses Google Drive</p>
@@ -315,6 +337,8 @@
     let currentReportHistoryData = [];
     let reportFileQueue = []; 
     let editingReportState = null;
+    
+    let tempMuridImage = null; // Menyimpan data base64 gambar semasa edit/tambah
 
     function showCustomModal(message, isConfirm = false, confirmCallback = null) {
         const modal = document.getElementById('custom-modal');
@@ -493,6 +517,16 @@
       });
     }
 
+    function showFullImage(src) {
+       const imgPreview = document.getElementById('full-image-preview');
+       imgPreview.src = src;
+       document.getElementById('full-image-modal').classList.remove('hidden');
+    }
+
+    function closeFullImage() {
+       document.getElementById('full-image-modal').classList.add('hidden');
+    }
+
     function renderStudents() {
       const container = document.getElementById('student-list');
       container.innerHTML = '';
@@ -547,19 +581,24 @@
             </svg>`;
         }
 
+        // Default avatar jika tiada gambar
+        let safeName = encodeURIComponent(std.nama);
+        let imgAvatar = std.gambar ? std.gambar : `https://ui-avatars.com/api/?name=${safeName}&background=2a2a2a&color=FFCC00`;
+
         const card = document.createElement('div');
         card.className = 'neu-flat p-4 flex flex-col gap-2 border border-yellow-500/10';
         card.innerHTML = `
-          <div class="flex justify-between items-center border-b border-gray-800 pb-2 mb-1">
+          <div class="flex justify-between items-center border-b border-gray-800 pb-3 mb-1">
             <div class="flex items-center gap-3">
               <input type="checkbox" id="hadir-${std.domId}" ${isChecked ? 'checked' : ''} onchange="toggleAttendance('${std.domId}')" class="w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0 cursor-pointer rounded bg-gray-900 border-gray-700">
+              <img src="${imgAvatar}" onerror="this.src='https://ui-avatars.com/api/?name=${safeName}&background=2a2a2a&color=FFCC00'" class="w-12 h-12 rounded-full object-cover border-2 border-yellow-500/50 cursor-pointer hover:scale-105 transition-transform flex-shrink-0 shadow-md" onclick="showFullImage('${imgAvatar}')">
               <div>
-                <p class="font-bold text-gray-200">${std.nama}</p>
-                <p class="text-xs text-yellow-500">Terkumpul: <span id="terkumpul-${std.domId}">${std.prestasi}</span> ⭐</p>
+                <p class="font-bold text-gray-200 leading-tight">${std.nama}</p>
+                <p class="text-xs text-yellow-500 mt-1">Terkumpul: <span id="terkumpul-${std.domId}">${std.prestasi}</span> ⭐</p>
               </div>
             </div>
             <button onclick="editMurid('${std.nama}')" class="p-2 text-gray-400 hover:text-yellow-500 transition">
-              <i data-lucide="edit-2" class="w-4 h-4"></i>
+              <i data-lucide="edit-2" class="w-5 h-5"></i>
             </button>
           </div>
           <div class="flex justify-between items-center mt-2">
@@ -692,8 +731,23 @@
       }
     }
 
+    async function handleMuridImageSelect(input) {
+       if (input.files && input.files[0]) {
+          const file = input.files[0];
+          const b64 = await compressImage(file);
+          document.getElementById('murid-modal-img-preview').src = b64;
+          tempMuridImage = {
+             mimeType: file.type,
+             data: b64.split(',')[1]
+          };
+       }
+    }
+
     function openAddMurid() {
       if(!navigator.onLine) return customAlert('Memerlukan internet untuk operasi ini.');
+      tempMuridImage = null;
+      document.getElementById('murid-modal-img-preview').src = "https://ui-avatars.com/api/?name=Baru&background=2a2a2a&color=FFCC00";
+      document.getElementById('murid-modal-gambar').value = "";
       document.getElementById('murid-modal-title').innerText = 'Tambah Murid Baharu';
       document.getElementById('murid-modal-oldnama').value = '';
       document.getElementById('murid-modal-nama').value = '';
@@ -706,6 +760,10 @@
       if(!navigator.onLine) return customAlert('Memerlukan internet untuk operasi ini.');
       const std = students.find(s => s.nama === nama);
       if(std) {
+        tempMuridImage = null;
+        let safeName = encodeURIComponent(std.nama);
+        document.getElementById('murid-modal-img-preview').src = std.gambar ? std.gambar : `https://ui-avatars.com/api/?name=${safeName}&background=2a2a2a&color=FFCC00`;
+        document.getElementById('murid-modal-gambar').value = "";
         document.getElementById('murid-modal-title').innerText = 'Ubah Suai Murid';
         document.getElementById('murid-modal-oldnama').value = std.nama;
         document.getElementById('murid-modal-nama').value = std.nama;
@@ -721,21 +779,27 @@
       const oldNama = document.getElementById('murid-modal-oldnama').value;
       const nama = document.getElementById('murid-modal-nama').value.trim();
       const kelas = document.getElementById('murid-modal-kelas').value.trim();
+      const guru = document.getElementById('guru-select').value;
       
       if(!nama || !kelas) return customAlert('Sila isi nama dan kelas!');
       
+      let payload = { oldNama, nama, kelas, guru };
+      if (tempMuridImage) {
+         payload.gambarData = tempMuridImage.data;
+         payload.gambarMime = tempMuridImage.mimeType;
+      }
+
       setLoading(true, "Menyimpan Data...");
       closeMuridModal();
       
-      if(oldNama) {
-        apiCall('updateMurid', { oldNama, nama, kelas }).then(() => {
-          loadInitialData(); 
-        }).catch(err => { customAlert('Gagal: ' + err); setLoading(false); });
-      } else {
-        apiCall('addMurid', { nama, kelas }).then(() => {
-          loadInitialData();
-        }).catch(err => { customAlert('Gagal: ' + err); setLoading(false); });
-      }
+      let apiEndpoint = oldNama ? 'updateMurid' : 'addMurid';
+      
+      apiCall(apiEndpoint, payload).then((res) => {
+        if(res.pointsEarned && res.pointsEarned > 0) {
+           customAlert(`Berjaya disimpan!\nPoint tambahan untuk guru dikesan: +${res.pointsEarned}`);
+        }
+        loadInitialData(); 
+      }).catch(err => { customAlert('Gagal: ' + err); setLoading(false); });
     }
 
     function deleteMuridAction() {
