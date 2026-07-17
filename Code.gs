@@ -675,7 +675,9 @@ function ujiArkibSemua() {
                .setValues(toArchive);
         totalArkib += toArchive.length;
         // Padam semua row data (kekalkan header)
-        sh.deleteRows(2, lastRow - 1);
+        // Kosongkan kandungan data (kekalkan header di baris 1).
+        // Guna clearContent kerana deleteRows tidak boleh padam semua baris non-frozen.
+        sh.getRange(2, 1, lastRow - 1, lastCol).clearContent();
         totalPadam += toArchive.length;
         laporan.push(sheetName + ": " + toArchive.length + " rekod diarkib");
       } else {
