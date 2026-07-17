@@ -541,8 +541,21 @@ function arkibBulanan() {
         var row = data[i];
         var d = parseSafeDateObj(row[0]);
         if (d.getMonth() === tM && d.getFullYear() === tY) {
-          var archRow = [sheetName, bulanArkib];
-          for (var j = 0; j < 9; j++) archRow.push(row[j] !== undefined ? row[j] : "");
+          // Petakan sheet aktif -> ARKIB_DATA. Skip row[3] (Plat) supaya
+          // MASA MASUK/KELUAR/STATUS/CATATAN/LOKASI/FOTO tidak tergeser.
+          // Src: 0=Tarikh 1=Nama 2=Jawatan 3=Plat 4=Masuk 5=Keluar 6=Status 7=Catatan 8=Lokasi 9=Foto
+          var archRow = [
+            sheetName, bulanArkib,
+            row[0] !== undefined ? row[0] : "",  // TARIKH
+            row[1] !== undefined ? row[1] : "",  // NAMA
+            row[2] !== undefined ? row[2] : "",  // JAWATAN/KELAS
+            row[4] !== undefined ? row[4] : "",  // MASA MASUK
+            row[5] !== undefined ? row[5] : "",  // MASA KELUAR
+            row[6] !== undefined ? row[6] : "",  // STATUS
+            row[7] !== undefined ? row[7] : "",  // CATATAN
+            row[8] !== undefined ? row[8] : "",  // LOKASI
+            row[9] !== undefined ? row[9] : ""   // FOTO
+          ];
           toArchive.push(archRow);
           rowsToDelete.push(i + 2);
         }
@@ -670,8 +683,21 @@ function ujiArkibSemua() {
         var row = data[i];
         var d = parseSafeDateObj(row[0]);
         var bulanArkib = Utilities.formatDate(d, "GMT+8", "MM.yyyy");
-        var archRow = [sheetName, bulanArkib];
-        for (var j = 0; j < 9; j++) archRow.push(row[j] !== undefined ? row[j] : "");
+        // Petakan sheet aktif -> ARKIB_DATA. Skip row[3] (Plat) supaya
+        // MASA MASUK/KELUAR/STATUS/CATATAN/LOKASI/FOTO tidak tergeser.
+        // Src: 0=Tarikh 1=Nama 2=Jawatan 3=Plat 4=Masuk 5=Keluar 6=Status 7=Catatan 8=Lokasi 9=Foto
+        var archRow = [
+          sheetName, bulanArkib,
+          row[0] !== undefined ? row[0] : "",  // TARIKH
+          row[1] !== undefined ? row[1] : "",  // NAMA
+          row[2] !== undefined ? row[2] : "",  // JAWATAN/KELAS
+          row[4] !== undefined ? row[4] : "",  // MASA MASUK
+          row[5] !== undefined ? row[5] : "",  // MASA KELUAR
+          row[6] !== undefined ? row[6] : "",  // STATUS
+          row[7] !== undefined ? row[7] : "",  // CATATAN
+          row[8] !== undefined ? row[8] : "",  // LOKASI
+          row[9] !== undefined ? row[9] : ""   // FOTO
+        ];
         toArchive.push(archRow);
       }
 
