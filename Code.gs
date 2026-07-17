@@ -500,6 +500,11 @@ function ensureArkibSheet() {
     sh.setFrozenRows(1);
     sh.setColumnWidth(1,110); sh.setColumnWidth(2,100); sh.setColumnWidth(4,180);
   }
+  // Paksa format kolum supaya tarikh & masa dipapar dengan betul
+  // (elakkan bug "12/30/1899" pada kolum masa)
+  sh.getRange("C2:C").setNumberFormat("dd/MM/yyyy");   // TARIKH
+  sh.getRange("F2:F").setNumberFormat("HH:mm:ss");     // MASA MASUK
+  sh.getRange("G2:G").setNumberFormat("HH:mm:ss");     // MASA KELUAR
   return sh;
 }
 
