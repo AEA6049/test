@@ -2,1590 +2,2128 @@
 <html lang="ms">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>YAYASAN SULTAN AZLAN SHAH</title>
-  <link rel="manifest" href="manifest.json">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/lucide@latest"></script>
-  <!-- Pustaka QRious untuk Jana QR Code Automatik -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
-  <!-- Pustaka Cropper.js untuk Potong dan Posisi Gambar -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css" />
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <!-- PENTING: Anti-Cache Meta Tags ditambah untuk mengelakkan peranti menyimpan versi lama -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>Sistem Pelawat & Kehadiran v38.0 (Modul Cuti Penuh)</title>
+  
   <script>
-    // ==========================================
-    // KONFIGURASI UTAMA SISTEM (Ubah suai di sini)
-    // ==========================================
-    const APP_CONFIG = {
-      GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycby1oS5H2EjJvqeDNImAmgEXAAq2ugzhQKRgdFVXZkQaia8zcFqQ8FgjlcGQa_9ZWdjA/exec"
+    // Trik untuk bypass cache browser yang degil jika pengguna tekan butang 'Back'
+    if (window.performance && window.performance.navigation.type === window.performance.navigation.TYPE_BACK_FORWARD) {
+        window.location.reload();
+    }
+
+    const API_URL = 'https://script.google.com/macros/s/AKfycbwaigb4x8FCXyDUzuDlt6kNn5AZoCqnHm4O17co7O5FPCgRxDUVpUcy23mN5U-Tte5tyA/exec'; 
+    const PASSCODE = "101010";
+    const SCHOOL_LAT = 5.250891554235944; 
+    const SCHOOL_LNG = 100.75591785106874; 
+    const RADIUS_METER = 200; 
+    const MINIT_ANTI_SPAM_MASUK = 1;
+    const MINIT_DELAY_KELUAR = 1;
+    const RADIUS_RESET_AUTO_IN = 200;
+    const JADUAL_BERTUGAS = {
+      "GURU":       { masuk: "07:20:00 AM", keluar: "02:00:00 PM" },
+      "AKP":        { masuk: "07:00:00 AM", keluar: "05:00:00 PM" },
+      "KEBERSIHAN": { masuk: "07:00:00 AM", keluar: "04:00:00 PM" },
+      "PELAWAT":    { masuk: "BEBAS",       keluar: "BEBAS" }
     };
-  </script>
-  <style>
-    :root {
-      /* TEMA HITAM & KUNING DIRAJA */
-      --bg-color: #121212; 
-      --shadow-light: #1f1f1f;
-      --shadow-dark: #050505;
-      --text-main: #f3f4f6;
-      --text-muted: #9ca3af;
-      --accent-gold: #FFCC00; 
-      --accent-gold-dark: #b38f00;
-      --panel-bg: rgba(26, 26, 26, 0.8);
-    }
-    body {
-      background-color: var(--bg-color);
-      color: var(--text-main);
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      overflow-x: hidden;
-    }
-    .neu-flat {
-      background: var(--bg-color);
-      border-radius: 16px;
-      box-shadow: 8px 8px 16px var(--shadow-dark), -8px -8px 16px var(--shadow-light);
-    }
-    .neu-pressed {
-      background: var(--bg-color);
-      color: var(--text-main);
-      border-radius: 16px;
-      box-shadow: inset 6px 6px 12px var(--shadow-dark), inset -6px -6px 12px var(--shadow-light);
-    }
-    .neu-pressed::placeholder {
-      color: var(--text-muted);
-    }
-    .neu-btn {
-      background: var(--bg-color);
-      color: var(--accent-gold);
-      border-radius: 50px;
-      box-shadow: 5px 5px 10px var(--shadow-dark), -5px -5px 10px var(--shadow-light);
-      transition: all 0.2s ease-in-out;
-    }
-    .neu-btn:active {
-      box-shadow: inset 4px 4px 8px var(--shadow-dark), inset -4px -4px 8px var(--shadow-light);
-    }
-    .neu-btn-gold {
-      background: var(--accent-gold);
-      color: #000000;
-      box-shadow: 5px 5px 10px var(--shadow-dark), -5px -5px 10px var(--shadow-light);
-    }
-    .neu-btn-gold:active {
-      background: var(--accent-gold-dark);
-    }
-    .glass-panel {
-      background: var(--panel-bg);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      border: 1px solid rgba(255, 204, 0, 0.2);
-      border-radius: 24px;
-      color: var(--text-main);
-    }
-    .hidden { display: none !important; }
-    input[type="checkbox"] { accent-color: var(--accent-gold); cursor: pointer; }
-    input[type="date"]::-webkit-calendar-picker-indicator {
-      filter: invert(1);
-      cursor: pointer;
+
+    let jamConfig = JADUAL_BERTUGAS; 
+    let isInZone = false; 
+    let currentDist = 0; 
+    let lastLat = 0, lastLng = 0;
+    let currentList = []; 
+    let isSubmitting = false; 
+    let hasNotifiedWake = false; 
+    let inZoneStart = 0; 
+    let outZoneStart = 0; 
+    let wakeLock = null;
+    let hasNotifiedEntry = false;
+    let hasNotifiedExit = false;
+    let gpsWatchId = null;
+    let isCutiModeActive = false;
+
+    function getTodayStr() {
+      let d = new Date();
+      return String(d.getDate()).padStart(2, '0') + '.' + String(d.getMonth() + 1).padStart(2, '0') + '.' + d.getFullYear();
     }
 
-    /* PRINT STYLES UNTUK PDF KOPERAT BOLEH EDIT */
-    @media screen {
-      #print-area { display: none; }
+    function parseDateStringDDMMYYYY(str) {
+       if(!str) return new Date(0);
+       let p = str.split('.');
+       if(p.length === 3) return new Date(p[2], p[1]-1, p[0]);
+       return new Date(str);
     }
-    @media print {
-      @page {
-        size: A4;
-        margin: 0; /* SET KEPADA 0 UNTUK MENGHILANGKAN BROWSER HEADER DAN FOOTER (URL/TARIKH/PAGE) */
-      }
-      body, html { 
-        background: #ffffff !important; 
-        color: #000000 !important; 
-        margin: 0;
-        padding: 0;
-        width: 100%;
-      }
-      body > *:not(#print-area) { display: none !important; }
-      #print-area { 
-        display: block !important; 
-        width: 100%;
-      }
-      * {
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
-      }
-    }
-  </style>
-</head>
-<body class="p-4">
 
-  <!-- Custom Modal Popup -->
-  <div id="custom-modal" class="fixed inset-0 z-[200] p-4 hidden flex items-center justify-center bg-black/80 backdrop-blur-md">
-    <div class="glass-panel w-full max-w-sm p-6 relative text-center border border-yellow-500/30">
-      <h3 class="font-bold text-xl mb-4 text-yellow-500" id="custom-modal-title">Notis Sistem</h3>
-      <p class="text-gray-200 mb-6 font-semibold" id="custom-modal-message"></p>
-      <div id="custom-modal-actions" class="flex gap-3 justify-center">
-      </div>
-    </div>
-  </div>
-
-  <!-- Full Size Image Modal -->
-  <div id="full-image-modal" class="fixed inset-0 z-[300] p-4 hidden flex items-center justify-center bg-black/90 backdrop-blur-xl" onclick="closeFullImage()">
-    <div class="relative max-w-2xl w-full flex justify-center" onclick="event.stopPropagation()">
-       <img id="full-image-preview" src="" class="max-w-full max-h-[80vh] object-contain rounded-2xl border-4 border-yellow-500 shadow-2xl">
-       <button onclick="closeFullImage()" class="absolute -top-12 right-0 md:-right-12 text-yellow-500 font-bold bg-black/50 rounded-full p-2 hover:bg-gray-800 transition">
-          <i data-lucide="x" class="w-8 h-8"></i>
-       </button>
-    </div>
-  </div>
-
-  <!-- Loading Overlay -->
-  <div id="loading-overlay" class="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/80 backdrop-blur-md hidden">
-    <div class="w-12 h-12 border-4 border-yellow-500 border-t-transparent rounded-full animate-spin"></div>
-    <p class="mt-4 font-bold text-yellow-500" id="loading-text">Memuat Turun Data...</p>
-  </div>
-
-  <!-- Header Section -->
-  <header class="flex justify-between items-center mb-6 neu-flat p-4">
-    <div class="flex-1 pr-2">
-      <h1 class="text-xl font-bold text-yellow-500 uppercase leading-tight">YAYASAN SULTAN AZLAN SHAH</h1>
-      <p class="text-sm font-semibold text-gray-300 mt-1">SMK SUNGAI BAYO</p>
-      <p class="text-xs text-gray-400 font-semibold mt-2" id="status-indicator">🟢 Online</p>
-    </div>
-    <button onclick="openAdmin()" class="neu-btn p-3 flex-shrink-0">
-      <i data-lucide="settings" class="w-6 h-6"></i>
-    </button>
-  </header>
-
-  <!-- Print Container -->
-  <div id="print-area"></div>
-
-  <!-- Main App -->
-  <main id="main-app" class="space-y-6">
-    
-    <!-- Teacher & Session Info -->
-    <section class="neu-flat p-5 border border-yellow-500/20">
-      <label class="block text-sm font-bold mb-2 text-yellow-500">Nama Guru</label>
-      <select id="guru-select" class="w-full p-3 neu-pressed outline-none mb-4" onchange="saveGuruSelection()">
-        <option value="">-- Sedang memuat --</option>
-      </select>
-      
-      <label class="block text-sm font-bold mb-2 text-yellow-500">Kelas</label>
-      <select id="kelas-select" class="w-full p-3 neu-pressed outline-none" onchange="handleKelasChange()">
-        <option value="">-- Sedang memuat --</option>
-      </select>
-    </section>
-
-    <!-- Tab Switcher -->
-    <div class="flex space-x-2 neu-flat p-2">
-      <button id="btn-tab-kehadiran" onclick="switchMainTab('kehadiran')" class="flex-1 bg-[#FFCC00] text-black py-3 rounded-xl font-bold transition shadow-sm">
-        Kehadiran & Markah
-      </button>
-      <button id="btn-tab-pelaporan" onclick="switchMainTab('pelaporan')" class="flex-1 bg-transparent text-gray-400 py-3 rounded-xl font-bold transition">
-        Dokumentasi Sesi
-      </button>
-    </div>
-
-    <!-- Kehadiran Tab -->
-    <section id="tab-kehadiran" class="space-y-4">
-      <div class="flex flex-col mb-4 bg-gray-900 p-4 rounded-2xl border border-yellow-500/20">
-        <label class="block text-sm font-bold mb-2 text-yellow-500">Tarikh Kehadiran</label>
-        <input type="date" id="tarikh-kehadiran" class="w-full p-3 neu-pressed outline-none text-gray-200 font-bold" onchange="checkKehadiranDate()">
-        <p class="text-xs text-gray-400 mt-2">*Ubah tarikh untuk melihat atau mengemaskini markah lepas.</p>
-        <p id="amaran-tarikh-kehadiran" class="text-xs text-red-400 mt-1 font-bold hidden">*PERHATIAN: Kemaskini untuk tarikh lepas (bukan hari ini) HANYA sekadar simpanan rekod dan TIDAK akan memberikan sebarang markah atau bintang.</p>
-      </div>
-
-      <div class="flex justify-between items-center mb-2 pl-2">
-        <h2 class="text-lg font-bold text-yellow-500">Senarai Murid & Bintang</h2>
-      </div>
-      <div id="student-list" class="space-y-4">
-        <!-- Dynamic Student Cards here -->
-      </div>
-      
-      <div class="mt-4 flex justify-center">
-        <button onclick="openAddMurid()" class="neu-btn px-6 py-3 flex items-center gap-2 text-sm font-bold w-full justify-center">
-          <i data-lucide="user-plus" class="w-5 h-5"></i> Tambah Murid Baru
-        </button>
-      </div>
-
-      <div id="attendance-summary" class="neu-flat p-4 mt-6 text-center font-bold text-yellow-500 hidden border border-yellow-500/20"></div>
-
-      <button id="btn-submit-kehadiran" onclick="submitAttendance()" class="w-full mt-6 py-4 text-lg font-bold rounded-2xl neu-btn-gold flex justify-center items-center gap-2">
-        <i data-lucide="clipboard-check" class="w-5 h-5"></i> Simpan Kehadiran Murid
-      </button>
-    </section>
-
-    <!-- Pelaporan Tab -->
-    <section id="tab-pelaporan" class="neu-flat p-5 hidden border border-yellow-500/20">
-      
-      <!-- Sub-Tabs Pelaporan -->
-      <div class="flex space-x-2 mb-6 border-b border-gray-700 pb-2">
-        <button id="subtab-baru" onclick="switchReportTab('baru')" class="text-yellow-500 font-bold px-2 py-1 border-b-2 border-yellow-500 transition">Laporan Baru</button>
-        <button id="subtab-sejarah" onclick="switchReportTab('sejarah')" class="text-gray-400 font-bold px-2 py-1 border-b-2 border-transparent transition">Sejarah Laporan</button>
-      </div>
-
-      <!-- Laporan Baru / Kemaskini -->
-      <div id="pelaporan-baru-section">
-        <div class="flex justify-between items-center mb-2">
-           <h2 id="laporan-form-title" class="text-lg font-bold text-yellow-500">Laporan Sesi & Dokumentasi</h2>
-           <button id="btn-cancel-edit" onclick="cancelEditReport()" class="hidden text-xs text-red-400 hover:text-red-300 border border-red-500/30 px-3 py-1 rounded-full">Batal Kemaskini</button>
-        </div>
-        <p class="text-xs text-gray-400 mb-4">Muat naik fail tanpa had. Boleh pilih fail satu persatu berulang kali.</p>
-        
-        <label class="block text-sm font-bold mb-2 text-yellow-500">Tarikh Laporan</label>
-        <input type="date" id="tarikh-laporan-baru" class="w-full p-3 neu-pressed outline-none text-gray-200 font-bold mb-2" onchange="checkLaporanDate()">
-        <p id="amaran-tarikh-laporan" class="text-xs text-red-400 mb-4 font-bold hidden">*PERHATIAN: Laporan untuk tarikh lepas (bukan hari ini) TIDAK akan memberikan sebarang point. Demi integriti.</p>
-
-        <label class="block text-sm font-bold mb-2 text-yellow-500">Ulasan Sesi</label>
-        <textarea id="ulasan" rows="6" class="w-full p-3 neu-pressed outline-none mb-4" placeholder="Ulasan ringkas atau padat..."></textarea>
-        
-        <label class="block text-sm font-bold mb-2 text-yellow-500">Lampiran Bukti (Gambar / Dokumen)</label>
-        <div class="flex flex-col gap-2 mb-6">
-          <input type="file" id="gambar-bukti" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" class="hidden" onchange="handleFileSelect(this)">
-          <button type="button" onclick="document.getElementById('gambar-bukti').click()" class="neu-btn px-4 py-3 flex items-center justify-center gap-2 text-sm font-bold w-full bg-gray-800 text-yellow-500 hover:bg-gray-700">
-            <i data-lucide="plus-circle" class="w-5 h-5"></i> Pilih Fail Lampiran
-          </button>
-          <!-- Tempat senarai fail dipaparkan -->
-          <div id="file-queue-container" class="space-y-2 mt-2 empty:hidden"></div>
-          <div id="old-file-container" class="space-y-2 mt-2 empty:hidden"></div>
-        </div>
-
-        <button id="btn-submit-report" onclick="submitReport()" class="w-full py-4 text-lg font-bold rounded-2xl bg-yellow-500 text-black shadow-lg flex justify-center items-center gap-2 hover:bg-yellow-400">
-          <i data-lucide="send" class="w-5 h-5"></i> Hantar Laporan Sesi
-        </button>
-      </div>
-
-      <!-- Sejarah Laporan -->
-      <div id="pelaporan-sejarah-section" class="hidden space-y-4">
-        <div class="flex flex-col bg-gray-900 p-4 rounded-2xl">
-           <label class="block text-sm font-bold mb-2 text-yellow-500">Cari Mengikut Tarikh</label>
-           <div class="flex gap-2">
-             <input type="date" id="tarikh-sejarah-laporan" class="flex-1 p-3 neu-pressed outline-none text-gray-200 font-bold">
-             <button onclick="fetchReportHistory()" class="neu-btn p-3 px-4 flex items-center justify-center">
-               <i data-lucide="search" class="w-5 h-5"></i>
-             </button>
-           </div>
-        </div>
-        <div id="report-history-container" class="space-y-4">
-          <p class="text-sm text-gray-500 text-center py-4">Sila pilih tarikh untuk melihat sejarah laporan.</p>
-        </div>
-      </div>
-
-    </section>
-
-  </main>
-
-  <!-- Modal Tambah/Edit Murid -->
-  <div id="murid-modal" class="fixed inset-0 z-[150] p-4 hidden flex items-center justify-center bg-black/80 backdrop-blur-md">
-    <div class="glass-panel w-full max-w-sm p-6 relative max-h-[90vh] overflow-y-auto">
-      <h3 id="murid-modal-title" class="font-bold text-xl mb-4 text-yellow-500 text-center">Tambah Murid</h3>
-      <input type="hidden" id="murid-modal-oldnama">
-      
-      <!-- RUANGAN GAMBAR AVATAR -->
-      <div id="murid-avatar-section" class="mb-6 text-center">
-        <div class="relative inline-block">
-          <img id="murid-modal-img-preview" src="https://ui-avatars.com/api/?name=X&background=2a2a2a&color=FFCC00" class="w-24 h-24 rounded-full object-cover border-4 border-gray-800 shadow-lg mx-auto cursor-pointer hover:border-yellow-500 transition-colors" onclick="checkGuruBeforeUpload()">
-          <div class="absolute bottom-0 right-0 bg-yellow-500 text-black p-2 rounded-full cursor-pointer shadow-lg hover:scale-110 transition-transform" onclick="checkGuruBeforeUpload()">
-            <i data-lucide="camera" class="w-4 h-4"></i>
-          </div>
-        </div>
-        <p class="text-xs text-yellow-500 font-bold mt-2">+1 Point untuk upload gambar!</p>
-      </div>
-      
-      <!-- RUANGAN CROP GAMBAR (TERSEMBUNYI PADA MULANYA) -->
-      <div id="murid-crop-section" class="mb-6 hidden flex flex-col items-center">
-        <div class="w-full h-64 bg-gray-900 overflow-hidden rounded-xl relative">
-            <img id="murid-crop-image" src="" class="max-w-full block">
-        </div>
-        <p class="text-xs text-yellow-500 font-bold mt-2 text-center">Sentuh dan gerakkan gambar ke dalam kotak fokus.</p>
-      </div>
-      
-      <input type="file" id="murid-modal-gambar" accept="image/*" capture="environment" class="hidden" onchange="handleMuridImageSelect(this)">
-
-      <label class="block text-sm font-bold mb-1 text-gray-300">Nama Murid</label>
-      <input type="text" id="murid-modal-nama" class="w-full p-3 neu-pressed outline-none mb-4 uppercase" placeholder="Cth: ALI BIN ABU">
-      
-      <label class="block text-sm font-bold mb-1 text-gray-300">Kelas</label>
-      <input type="text" id="murid-modal-kelas" class="w-full p-3 neu-pressed outline-none mb-6" placeholder="Cth: 1 Zamrud">
-      
-      <div class="flex gap-3 mb-3">
-        <button onclick="saveMurid()" class="flex-1 bg-yellow-500 text-black font-bold py-3 rounded-xl shadow-lg hover:bg-yellow-400 transition">Simpan</button>
-        <button onclick="closeMuridModal()" class="flex-1 bg-gray-700 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-gray-600 transition">Batal</button>
-      </div>
-      
-      <button id="murid-modal-delete" onclick="deleteMuridAction()" class="w-full bg-red-600 text-white font-bold py-3 rounded-xl shadow-lg hidden flex justify-center items-center gap-2 hover:bg-red-500 transition">
-        <i data-lucide="trash-2" class="w-5 h-5"></i> Padam Rekod
-      </button>
-    </div>
-  </div>
-
-  <!-- Admin Secret Panel -->
-  <div id="admin-panel" class="fixed inset-0 z-[150] p-4 hidden flex items-center justify-center bg-black/80 backdrop-blur-md">
-    <div class="glass-panel w-full max-w-lg p-6 relative">
-      <button onclick="closeAdmin()" class="absolute top-4 right-4 text-yellow-500 font-bold bg-black/50 rounded-full p-2 hover:bg-gray-800">
-        <i data-lucide="x" class="w-5 h-5"></i>
-      </button>
-      <h2 class="text-xl font-bold mb-4 text-yellow-500">Status PWA & Maklumat</h2>
-      <div class="space-y-4 text-sm text-gray-300">
-        <p>⭐ <b>Prestasi & Integriti:</b> Sistem markah (guru & murid) HANYA sah untuk hari semasa sahaja. Kemaskini hari lepas hanya menyimpan rekod (0 point).</p>
-        <p>🗺️ <b>Pemetaan GPS:</b> Koordinat GPS disimpan secara tersembunyi ke dalam Pangkalan Data untuk simpanan pentadbir.</p>
-        <p>📷 <b>Wajah Murid:</b> Memuat naik gambar pelajar akan memberikan 1 mata (point) secara automatik kepada guru untuk menggalakkan cakna pelajar.</p>
-        <p>📄 <b>Dokumentasi Berpusat:</b> Laporan disusun kemas. Gambar Google Drive dipintasi dengan selamat (tiada Ralat 403).</p>
-      </div>
-      <div class="mt-4 border-t border-gray-700 pt-4">
-        <p class="text-sm font-bold text-yellow-500 mb-2">Ujian Akses Google Drive</p>
-        <div class="flex gap-2">
-          <input type="text" id="test-file-id" placeholder="Masukkan File ID Google Drive" class="flex-1 p-2 neu-pressed text-sm outline-none text-gray-200">
-          <button onclick="testDriveAccessUI()" class="neu-btn px-4 py-2 text-sm">Uji Akses</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    lucide.createIcons();
-
-    let students = []; 
-    let classes = [];
-    let teachers = [];
-    let offlineQueue = JSON.parse(localStorage.getItem('offlineQueue') || '[]');
-    let currentHistoryData = null; 
-    let currentReportHistoryData = [];
-    let reportFileQueue = []; 
-    let editingReportState = null;
-    
-    let tempMuridImage = null; 
-    let cropper = null; 
-
-    function showCustomModal(message, isConfirm = false, confirmCallback = null) {
-        const modal = document.getElementById('custom-modal');
-        document.getElementById('custom-modal-message').innerHTML = message.replace(/\n/g, '<br>');
-        const actions = document.getElementById('custom-modal-actions');
-        actions.innerHTML = '';
-        
-        if (isConfirm) {
-            const btnYa = document.createElement('button');
-            btnYa.className = 'flex-1 bg-yellow-500 text-black font-bold py-3 rounded-xl hover:bg-yellow-400 transition';
-            btnYa.innerText = 'Ya';
-            btnYa.onclick = () => { modal.classList.add('hidden'); if(confirmCallback) confirmCallback(); };
-            
-            const btnTidak = document.createElement('button');
-            btnTidak.className = 'flex-1 bg-gray-700 text-white font-bold py-3 rounded-xl hover:bg-gray-600 transition';
-            btnTidak.innerText = 'Batal';
-            btnTidak.onclick = () => { modal.classList.add('hidden'); };
-            
-            actions.appendChild(btnYa);
-            actions.appendChild(btnTidak);
-        } else {
-            const btnOk = document.createElement('button');
-            btnOk.className = 'w-full bg-yellow-500 text-black font-bold py-3 rounded-xl hover:bg-yellow-400 transition shadow-lg';
-            btnOk.innerText = 'Tutup';
-            btnOk.onclick = () => { modal.classList.add('hidden'); };
-            actions.appendChild(btnOk);
+    function sendData(data) {
+      return new Promise((resolve, reject) => {
+        if (!data.clientTime) { data.clientTime = new Date().toISOString(); }
+        if (!navigator.onLine) {
+          saveToQueue(data); resolve({ offline: true }); return;
         }
-        modal.classList.remove('hidden');
-    }
-    
-    function customAlert(message) { showCustomModal(message, false); }
-    function customConfirm(message, callback) { showCustomModal(message, true, callback); }
-
-    function formatDateMY(yyyyMMdd) {
-        if (!yyyyMMdd) return '';
-        const parts = yyyyMMdd.split('-');
-        if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
-        return yyyyMMdd;
-    }
-
-    async function apiCall(action, payload = null) {
-      if (typeof google !== 'undefined' && google.script) {
-        return new Promise((resolve, reject) => {
-          if (action === 'getInitialData') google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).getInitialData();
-          else if (action === 'addMurid') google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).addMurid(payload);
-          else if (action === 'updateMurid') google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).updateMurid(payload);
-          else if (action === 'deleteMurid') google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).deleteMurid(payload);
-          else if (action === 'processAttendance') google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).processAttendance(payload);
-          else if (action === 'processReport') google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).processReport(payload);
-          else if (action === 'updateReport') google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).updateReport(payload);
-          else if (action === 'getAttendanceHistory') google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).getAttendanceHistory(payload);
-          else if (action === 'getReportHistory') google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).getReportHistory(payload);
-          else if (action === 'getDriveImageBase64') google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).getDriveImageBase64(payload);
-          else if (action === 'testFileAccess') google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).testFileAccess(payload);
-        });
-      } else {
-        const url = APP_CONFIG.GAS_WEB_APP_URL + "?action=" + action;
-        const options = payload ? {
-          method: 'POST',
-          body: JSON.stringify(payload),
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' }
-        } : {};
-        try {
-          const res = await fetch(url, options);
-          return await res.json();
-        } catch(e) {
-          throw new Error('Ralat API: ' + e.message);
-        }
-      }
-    }
-
-    // TAMPUNGAN AUTOMATIK IMEJ BERMASALAH (403 FORBIDDEN)
-    async function loadBase64Fallback(img, url) {
-        if (img.dataset.fallback === "true") return;
-        img.dataset.fallback = "true";
-        try {
-            const res = await apiCall('getDriveImageBase64', { url: url });
-            if (res && res.success && res.base64) {
-                img.src = res.base64;
-            } else {
-                img.src = "https://placehold.co/150x150/1a1a1a/FFCC00?text=Imej+Gagal";
-            }
-        } catch(e) {
-            img.src = "https://placehold.co/150x150/1a1a1a/FFCC00?text=Imej+Gagal";
-        }
-    }
-
-    function getTodayString() {
-      const d = new Date();
-      return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, '0') + "-" + String(d.getDate()).padStart(2, '0');
-    }
-
-    function loadInitialData() {
-      setLoading(true, "Memuat Turun Data...");
-      document.getElementById('tarikh-kehadiran').value = getTodayString();
-      document.getElementById('tarikh-laporan-baru').value = getTodayString();
-      document.getElementById('tarikh-sejarah-laporan').value = getTodayString();
-
-      checkKehadiranDate(true);
-      checkLaporanDate(true);
-
-      apiCall('getInitialData').then(data => {
-        students = data.murid.map(m => ({ ...m, nama: m.nama.toUpperCase(), domId: m.nama.toUpperCase().replace(/[^a-zA-Z0-9]/g, '_') })) || [];
-        teachers = data.guru || [];
-        classes = [...new Set(students.map(s => s.kelas))];
-        populateSelects();
-        renderStudents();
-        setLoading(false);
-      }).catch(err => {
-        console.error(err);
-        customAlert("Gagal menyambung ke pangkalan data.\nMenggunakan mod luar talian.");
-        setLoading(false);
+        fetch(API_URL + "?t=" + new Date().getTime(), { 
+          method: "POST", 
+          cache: "no-store", 
+          body: JSON.stringify(data) 
+        })
+        .then(response => response.json())
+        .then(result => { resolve({ offline: false, data: result }); })
+        .catch(error => { saveToQueue(data); resolve({ offline: true }); });
       });
     }
 
-    function checkKehadiranDate(skipFetch = false) {
-      const tarikh = document.getElementById('tarikh-kehadiran').value;
-      const amaran = document.getElementById('amaran-tarikh-kehadiran');
-      if (tarikh !== getTodayString()) {
-        amaran.classList.remove('hidden');
+    function saveToQueue(data) {
+      if (!data.kategori) data.kategori = "PELAWAT";
+      let queue = JSON.parse(localStorage.getItem('ehadir_offline_queue') || "[]");
+      queue.push(data);
+      localStorage.setItem('ehadir_offline_queue', JSON.stringify(queue));
+    }
+
+    function fetchConfig() {
+      let loadEl = document.getElementById('loadingConfig');
+      if(loadEl) loadEl.style.display = 'none';
+      if(typeof updateScheduleInfo === 'function') updateScheduleInfo(); 
+    }
+
+    function checkAutoStatus(list) {
+      let currentSess = JSON.parse(localStorage.getItem('ehadir_session'));
+      let locked = localStorage.getItem('ehadir_locked_name');
+      let checkName = locked || (currentSess ? currentSess.nama : null);
+      if(!checkName) return;
+      
+      let activeRecord = list.find(item => item.nama === checkName && item.kategori !== "CUTI" && (!item.keluar || item.keluar === ""));
+
+      if (activeRecord) {
+        if (!currentSess || currentSess.nama !== checkName) {
+          localStorage.setItem('ehadir_session', JSON.stringify({
+            nama: activeRecord.nama,
+            kategori: activeRecord.kategori || "GURU", 
+            date: getTodayStr(),
+            avatar: activeRecord.avatar || localStorage.getItem('ehadir_user_avatar') || ""
+          }));
+          checkSession(); 
+        }
       } else {
-        amaran.classList.add('hidden');
+        let queue = JSON.parse(localStorage.getItem('ehadir_offline_queue') || "[]");
+        let isPending = queue.some(q => q.nama === checkName && q.action === "MASUK");
+        
+        if (currentSess && !isPending) {
+          localStorage.removeItem('ehadir_session');
+          document.getElementById('dashboardPanel').style.display = 'none';
+          document.getElementById('defaultForm').style.display = 'block';
+        }
       }
-      if (!skipFetch) fetchAttendanceHistory();
     }
 
-    function checkLaporanDate(skipAction = false) {
-      const tarikh = document.getElementById('tarikh-laporan-baru').value;
-      const amaran = document.getElementById('amaran-tarikh-laporan');
-      if (tarikh !== getTodayString()) {
-        amaran.classList.remove('hidden');
+    function validateFormState() {
+      let nameInput = document.getElementById('nama');
+      if(!nameInput) return;
+      let checkName = nameInput.value.toUpperCase().trim();
+      let btnMasuk = document.getElementById('btnMainSubmit');
+      let formWarn = document.getElementById('formWarningMsg');
+      
+      if(!checkName) {
+        if(btnMasuk) btnMasuk.style.display = 'flex';
+        if(formWarn) formWarn.style.display = 'none';
+        return;
+      }
+
+      let isActive = currentList.some(i => i.nama === checkName && !i.isOffline && i.kategori !== "CUTI" && (!i.keluar || i.keluar === ""));
+      let offlinePending = JSON.parse(localStorage.getItem('ehadir_offline_queue') || "[]").some(q => q.nama === checkName && q.action === "MASUK");
+
+      if (isActive || offlinePending) {
+        if(btnMasuk) btnMasuk.style.display = 'none'; 
+        if(formWarn) {
+          formWarn.innerHTML = "⚠️ ANDA BELUM DAFTAR KELUAR";
+          formWarn.style.display = 'block';
+        }
+        localStorage.setItem('ehadir_auto_in_blocked', 'true');
       } else {
-        amaran.classList.add('hidden');
+        if(btnMasuk) btnMasuk.style.display = 'flex';
+        if(formWarn) formWarn.style.display = 'none';
       }
     }
 
-    function saveGuruSelection() {
-      const sel = document.getElementById('guru-select').value;
-      if(sel) {
-          localStorage.setItem('selectedGuru', sel);
+    async function hantarMasuk(isAuto = false) {
+      if(isSubmitting) return; 
+
+      let nama, kat;
+      if (isAuto) {
+        nama = localStorage.getItem('ehadir_locked_name');
+        kat = localStorage.getItem('ehadir_locked_kat');
       } else {
-          localStorage.removeItem('selectedGuru');
+        nama = document.getElementById('nama').value.toUpperCase().trim();
+        kat = document.getElementById('kategori').value;
+      }
+
+      let isAlreadyActive = currentList.some(i => i.nama === nama && !i.isOffline && i.kategori !== "CUTI" && (!i.keluar || i.keluar === ""));
+      if (isAlreadyActive) {
+        if (!isAuto) showModernAlert("Sesi Aktif", "Anda belum daftar keluar untuk sesi sebelum ini. Sila klik DAFTAR KELUAR.", "error");
+        return;
+      }
+
+      if(!isAuto) {
+        localStorage.removeItem('ehadir_session');
+        localStorage.removeItem('ehadir_auto_in_blocked');
+      }
+
+      if(!isInZone) { 
+        if(isAuto) return; 
+        showModernAlert("Luar Kawasan", "Anda berada di luar zon yang dibenarkan (" + Math.round(currentDist) + "m).", "error");
+        return;
+      }
+
+      let alasan = "AUTO CHECK-IN (GPS)";
+      let now = new Date();
+
+      if (!nama || !kat) { 
+        if(!isAuto) showModernAlert("Data Tidak Lengkap", "Isi Nama dan Kategori.", "error"); 
+        return; 
+      }
+
+      isSubmitting = true;
+      if(!isAuto) { 
+        document.getElementById('btnMainSubmit').disabled = true; 
+        document.getElementById('btnMainSubmit').innerHTML = 'MENYEMAK GPS...'; 
+
+        try {
+          await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(pos => {
+              let d = calcDist(pos.coords.latitude, pos.coords.longitude, SCHOOL_LAT, SCHOOL_LNG);
+              if (d > RADIUS_METER) {
+                reject(`Lokasi tidak sah! Jarak: ${Math.round(d)}m`);
+              } else {
+                lastLat = pos.coords.latitude; 
+                lastLng = pos.coords.longitude; 
+                resolve();
+              }
+            }, err => {
+              if (isInZone && lastLat !== 0) {
+                resolve();
+              } else {
+                reject("Pencarian GPS gagal. " + err.message);
+              }
+            }, {enableHighAccuracy: true, maximumAge: 0, timeout: 5000});
+          });
+        } catch(e) {
+          showModernAlert("Gagal Masuk", e, "error");
+          isSubmitting = false;
+          document.getElementById('btnMainSubmit').disabled = false;
+          document.getElementById('btnMainSubmit').innerHTML = `<img src="https://cdn-icons-png.flaticon.com/128/9402/9402342.png" class="icon-3d-std"> DAFTAR MASUK`;
+          return;
+        }
+        document.getElementById('btnMainSubmit').innerHTML = 'SEDANG HANTAR...'; 
+      }
+
+      try {
+        let savedAvatar = localStorage.getItem('ehadir_user_avatar') || "";
+        let uniqueID = Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+        const payload = { action: "MASUK", passcode: PASSCODE, nama: nama, kategori: kat, alasan: alasan, lat: lastLat, lng: lastLng, clientTime: now.toISOString(), uuid: uniqueID, avatar: savedAvatar };
+        
+        const result = await sendData(payload);
+
+        if (result.offline) {
+          if(!isAuto) showModernAlert("Mod Offline", "Data disimpan dalam telefon.", "info");
+          localStorage.setItem('ehadir_session', JSON.stringify({nama: nama, kategori: kat, date: getTodayStr(), uuid: uniqueID, avatar: savedAvatar}));
+          localStorage.removeItem('ehadir_auto_in_blocked');
+          location.reload();
+        } else {
+          if (result.data && result.data.result === "success") {
+            if(isAuto) {
+              showSyncBar("MENGESAHKAN DATA DI PANGKALAN DATA...", "#f39c12");
+              await verifyAndFinalize(nama, kat, uniqueID, savedAvatar, 1, true);
+            } else {
+               document.getElementById('btnMainSubmit').innerHTML = 'SAHKAN DATA (DB)...';
+               await verifyAndFinalize(nama, kat, uniqueID, savedAvatar);
+            }
+          } else {
+             let msg = (result.data && result.data.msg) ? result.data.msg : "Data gagal masuk ke Google Sheet. Sila cuba lagi.";
+             if(!isAuto) showModernAlert("Gagal", msg, "error");
+             isSubmitting = false;
+             document.getElementById('btnMainSubmit').disabled = false;
+             document.getElementById('btnMainSubmit').innerHTML = `<img src="https://cdn-icons-png.flaticon.com/128/9402/9402342.png" class="icon-3d-std"> DAFTAR MASUK`;
+          }
+        }
+
+      } catch (error) {
+        console.error("Ralat:", error);
+        isSubmitting = false;
+        if(!isAuto) document.getElementById('btnMainSubmit').disabled = false;
       }
     }
 
-    function populateSelects() {
-      const guruSel = document.getElementById('guru-select');
-      const kelasSel = document.getElementById('kelas-select');
-      
-      guruSel.innerHTML = '<option value="">-- Pilih Nama Guru --</option>';
-      teachers.forEach(g => { guruSel.innerHTML += `<option value="${g}">${g}</option>`; });
-      
-      // Restore pilihan guru dari localStorage
-      const savedGuru = localStorage.getItem('selectedGuru');
-      if(savedGuru && teachers.includes(savedGuru)) {
-          guruSel.value = savedGuru;
+    async function verifyAndFinalize(nama, kat, uuid, avatar, attempt = 1, isAuto = false) {
+       if(attempt > 5) {
+         if(isAuto) {
+           showSyncBar("GAGAL SAHKAN DATA. AKAN CUBA SEMULA.", "#c0392b");
+           isSubmitting = false;
+         } else {
+           showModernAlert("Masa Tamat", "Data dihantar tetapi server lambat respon. Sila semak senarai manual.", "info");
+           isSubmitting = false;
+           document.getElementById('btnMainSubmit').disabled = false;
+           document.getElementById('btnMainSubmit').innerHTML = `<img src="https://cdn-icons-png.flaticon.com/128/9402/9402342.png" class="icon-3d-std"> DAFTAR MASUK`;
+         }
+         return;
+       }
+       
+       await new Promise(r => setTimeout(r, 2000));
+
+       try {
+         let response = await fetch(API_URL, { method: "POST", cache: "no-store", body: JSON.stringify({action: "GET_LIST", passcode: PASSCODE}) });
+         let json = await response.json();
+         let list = json.data || json;
+         let record = list.find(item => item.nama === nama && item.jam && item.jam !== "");
+         
+         if (record) {
+           if(isAuto) {
+             showSyncBar("BERJAYA: DATA DISAHKAN DALAM SISTEM", "#27ae60");
+             sendNotification("DAFTAR MASUK SAH", "Kehadiran anda telah direkodkan dalam pangkalan data.", "auto-success");
+           } else {
+             showModernAlert("Berjaya", "Data disahkan masuk dalam sistem!", "success");
+           }
+           localStorage.setItem('ehadir_session', JSON.stringify({nama: nama, kategori: kat, date: getTodayStr(), uuid: uuid, avatar: avatar}));
+           localStorage.removeItem('ehadir_auto_in_blocked');
+           setTimeout(() => location.reload(), 1500);
+         } else {
+           if(!isAuto) document.getElementById('btnMainSubmit').innerHTML = `SAHKAN DATA (${attempt}/5)...`;
+           else showSyncBar(`MENYEMAK PANGKALAN DATA (${attempt}/5)...`, "#e67e22");
+           
+           await verifyAndFinalize(nama, kat, uuid, avatar, attempt + 1, isAuto);
+         }
+       } catch(e) {
+         console.log("Verify Error", e);
+         await verifyAndFinalize(nama, kat, uuid, avatar, attempt + 1, isAuto);
+       }
+    }
+
+    async function hantarKeluar(isAuto = false) {
+      if(isSubmitting) return; 
+
+      let session = JSON.parse(localStorage.getItem('ehadir_session'));
+      let namaVal, katVal, uuidVal;
+
+      if (!isAuto && !session) {
+        let iName = document.getElementById('nama') ? document.getElementById('nama').value.toUpperCase().trim() : "";
+        if(!iName) iName = localStorage.getItem('ehadir_locked_name') || "";
+
+        if (!iName) { showModernAlert("Tiada Nama", "Sila isi Nama atau Kunci Nama dahulu untuk daftar keluar.", "error"); return; }
+        
+        let btn = document.getElementById('btnKeluarMain');
+        if(btn) btn.innerHTML = "MENYEMAK DATA...";
+        isSubmitting = true;
+
+        try {
+          let response = await fetch(API_URL, { method: "POST", cache: "no-store", body: JSON.stringify({action: "GET_LIST", passcode: PASSCODE}) });
+          let json = await response.json();
+          let list = json.data || json;
+          let record = list.find(item => item.nama === iName && item.kategori !== "CUTI" && item.jam && (!item.keluar || item.keluar === ""));
+          
+          if (record) {
+             namaVal = record.nama;
+             katVal = record.kategori;
+             uuidVal = record.uuid || ("MANUAL_OUT_" + Date.now());
+             isSubmitting = false; 
+             if(btn) btn.innerHTML = `<img src="https://cdn-icons-png.flaticon.com/128/3580/3580154.png" class="icon-3d-std"> DAFTAR KELUAR`;
+          } else {
+            showModernAlert("Gagal", "Tiada rekod masuk aktif untuk nama ini.", "error");
+            isSubmitting = false;
+            if(btn) btn.innerHTML = `<img src="https://cdn-icons-png.flaticon.com/128/3580/3580154.png" class="icon-3d-std"> DAFTAR KELUAR`;
+            return;
+          }
+        } catch (e) {
+          showModernAlert("Ralat", "Gagal menyemak status. Pastikan internet ada.", "error");
+          isSubmitting = false;
+          if(btn) btn.innerHTML = `<img src="https://cdn-icons-png.flaticon.com/128/3580/3580154.png" class="icon-3d-std"> DAFTAR KELUAR`;
+          return;
+        }
+      } else if (session && session.nama) {
+        namaVal = session.nama;
+        katVal = session.kategori;
+        uuidVal = session.uuid || "";
+      } else {
+        let lName = localStorage.getItem('ehadir_locked_name');
+        let lKat = localStorage.getItem('ehadir_locked_kat');
+        if (lName && lKat) { 
+            namaVal = lName; 
+            katVal = lKat; 
+        } else {
+          if(!isAuto) showModernAlert("Tiada Maklumat", "Sila isi Nama & Kategori atau KUNCI nama dahulu untuk daftar keluar.", "error");
+          return;
+        }
+        uuidVal = "MANUAL_OUT_" + Date.now();
       }
       
-      const currentKelas = kelasSel.value;
-      kelasSel.innerHTML = '<option value="">-- Sila Pilih Kelas --</option>';
-      classes.forEach(c => { kelasSel.innerHTML += `<option value="${c}">${c}</option>`; });
-      if(classes.includes(currentKelas)) kelasSel.value = currentKelas;
-    }
-
-    function handleKelasChange() {
-      fetchAttendanceHistory();
-    }
-
-    function fetchAttendanceHistory() {
-      const tarikh = document.getElementById('tarikh-kehadiran').value;
-      const kelas = document.getElementById('kelas-select').value;
+      if (isAuto && currentList.length > 0) {
+         let activeRec = currentList.find(i => i.nama === namaVal && i.kategori !== "CUTI" && (!i.keluar || i.keluar === ""));
+         if (activeRec && activeRec.uuid) uuidVal = activeRec.uuid;
+      }
       
-      if (!kelas || !tarikh) return renderStudents();
+      let alasanValue = isAuto ? "AUTO CHECKOUT (KELUAR KAWASAN)" : "PULANG (MANUAL)";
+      let sessionUUID = uuidVal;
 
-      if (tarikh === getTodayString()) {
-          currentHistoryData = null;
-          renderStudents();
+      let proceed = async () => {
+        isSubmitting = true; 
+        let locStatus = "TIADA";
+
+        if(!isAuto) { 
+          let btn = document.getElementById('btnKeluar') || document.getElementById('btnKeluarMain');
+          if(btn) { btn.disabled = true; btn.innerText = "MENCARI GPS (3s)..."; }
+          
+          try {
+            await new Promise((resolve, reject) => {
+              navigator.geolocation.getCurrentPosition(pos => {
+                let d = calcDist(pos.coords.latitude, pos.coords.longitude, SCHOOL_LAT, SCHOOL_LNG);
+                locStatus = (d <= RADIUS_METER) ? "DALAM" : "LUAR";
+                lastLat = pos.coords.latitude;
+                lastLng = pos.coords.longitude;
+                resolve();
+              }, err => {
+                reject();
+              }, { enableHighAccuracy: true, timeout: 3000, maximumAge: 0 });
+            });
+          } catch(e) {
+            locStatus = "TIADA";
+          }
+          if(btn) btn.innerText = "SEDANG HANTAR...";
+        } else {
+          locStatus = "LUAR";
+        }
+
+        try {
+          const payload = { action: "KELUAR", passcode: PASSCODE, nama: namaVal.toUpperCase(), alasan: alasanValue, lat: lastLat, lng: lastLng, clientTime: new Date().toISOString(), uuid: sessionUUID, locStatus: locStatus };
+          
+          await sendData(payload);
+          
+          if(isAuto) {
+            showSyncBar("SEMOGA SELAMAT DALAM PERJALANAN ANDA", "#c0392b");
+          } else {
+            showModernAlert("Selesai", "Daftar Keluar Berjaya.", "success");
+          }
+          
+          localStorage.setItem('ehadir_auto_in_blocked', 'true');
+          localStorage.removeItem('ehadir_session');
+          
+          setTimeout(() => location.reload(), 1500);
+
+        } catch (error) {
+          console.error(error);
+          localStorage.removeItem('ehadir_session');
+          location.reload();
+        }
+      };
+
+      if(!isAuto) {
+        showModernAlert("Pengesahan", "Daftar keluar sekarang?", "confirm", proceed);
+      } else {
+        proceed();
+      }
+    }
+
+    function keluarManual(namaUser) {
+      showModernAlert("Pengesahan Admin", "Passcode untuk keluarkan " + namaUser + ":", "prompt", function(pass) {
+        if (pass !== PASSCODE) { showModernAlert("Gagal", "Passcode salah.", "error"); return; }
+        
+        sendData({ action: "KELUAR", passcode: PASSCODE, nama: namaUser, alasan: "Manual Admin", lat: lastLat, lng: lastLng, clientTime: new Date().toISOString(), locStatus: "TIADA" })
+        .then(res => { 
+          loadList(); 
+        });
+      });
+    }
+
+    async function hantarPelawat() {
+      if(isSubmitting) return;
+      let foto = document.getElementById('base64Foto').value;
+      let namaPelawat = document.getElementById('namaPelawatInput').value.toUpperCase();
+      if (!foto) { showModernAlert("Tiada Gambar", "Ambil gambar dahulu.", "error"); return; }
+      if (!namaPelawat) { showModernAlert("Tiada Nama", "Isi nama pelawat.", "error"); return; }
+      isSubmitting = true;
+      document.getElementById('btnPelawatSubmit').disabled = true;
+      document.getElementById('btnPelawatSubmit').innerText = "SEDANG HANTAR...";
+      try {
+        const payload = { action: "MASUK", passcode: PASSCODE, kategori: "PELAWAT", nama: namaPelawat, fotoBase64: foto, lat: lastLat, lng: lastLng, clientTime: new Date().toISOString() };
+        let result = await sendData(payload);
+        if(result.offline || (result.data && result.data.result === "success")) {
+          showModernAlert("Berjaya", "Data pelawat diterima.", "success");
+          setTimeout(() => location.reload(), 1500);
+        } else {
+          showModernAlert("Gagal", "Server menolak data.", "error");
+          isSubmitting = false;
+          document.getElementById('btnPelawatSubmit').disabled = false;
+        }
+      } catch (error) {
+        console.error(error);
+        isSubmitting = false;
+      }
+    }
+
+    function monitorAutoLogic() {
+      if (isCutiModeActive) return;
+
+      let MS_IN_DELAY = (typeof MINIT_ANTI_SPAM_MASUK !== 'undefined' ? MINIT_ANTI_SPAM_MASUK : 1) * 60 * 1000;
+      let MS_OUT_DELAY = (typeof MINIT_DELAY_KELUAR !== 'undefined' ? MINIT_DELAY_KELUAR : 1) * 60 * 1000;
+
+      let session = JSON.parse(localStorage.getItem('ehadir_session'));
+      let locked = localStorage.getItem('ehadir_locked_name');
+      let lockedKat = localStorage.getItem('ehadir_locked_kat');
+      let now = Date.now();
+
+      let statusEl = document.getElementById('statusText');
+      let isBlocked = localStorage.getItem('ehadir_auto_in_blocked'); 
+
+      let checkName = locked || (session ? session.nama : null);
+      
+      let isSedangHadir = false;
+      let isSudahKeluar = false;
+      let isTidakHadir = false;
+      
+      if (checkName) {
+        isSedangHadir = currentList.some(i => i.nama === checkName && i.kategori !== "CUTI" && (!i.keluar || i.keluar === ""));
+        isSudahKeluar = currentList.some(i => i.nama === checkName && i.kategori !== "CUTI" && i.keluar && i.keluar !== "");
+        isTidakHadir = currentList.some(i => i.nama === checkName && i.kategori === "CUTI");
+      }
+
+      if (isInZone) {
+         let icon = "<img src='https://cdn-icons-png.flaticon.com/128/190/190411.png' class='icon-3d-mini'>";
+         if(statusEl && !statusEl.innerHTML.includes('SEMAK & AKTIFKAN')) {
+           statusEl.innerHTML = icon + " DALAM KAWASAN (" + Math.round(currentDist) + "m)";
+           statusEl.style.color = "#1e3c72";
+           statusEl.style.background = "#e0eafc";
+         }
+         
+         if (isBlocked || isSedangHadir || isSudahKeluar || isTidakHadir) {
+           if (statusEl && !statusEl.innerHTML.includes('SEMAK & AKTIFKAN')) {
+             if (isSedangHadir) {
+               statusEl.innerHTML += `<br><span style="font-size:9px; color:#e67e22;">AUTO-IN DISABLE (SEDANG HADIR)</span>`;
+             } else if (isSudahKeluar) {
+               statusEl.innerHTML += `<br><span style="font-size:9px; color:#e67e22;">AUTO-IN DISABLE (SUDAH KELUAR HARI INI)</span>`;
+             } else if (isTidakHadir) {
+               statusEl.innerHTML += `<br><span style="font-size:9px; color:#e67e22;">AUTO-IN DISABLE (TIDAK HADIR/CUTI)</span>`;
+             } else {
+               statusEl.innerHTML += `<br><span style="font-size:9px; color:#e67e22;">AUTO-IN DISABLE (KELUAR > ${RADIUS_RESET_AUTO_IN}M UNTUK RESET)</span>`;
+             }
+           }
+           return; 
+         }
+      } else {
+         let icon = "<img src='https://cdn-icons-png.flaticon.com/128/190/190406.png' class='icon-3d-mini'>";
+         if(statusEl && !statusEl.innerHTML.includes('SEMAK & AKTIFKAN')) {
+           statusEl.innerHTML = icon + " LUAR KAWASAN @ AKTIFKAN GPS (" + Math.round(currentDist) + "m)";
+           statusEl.style.color = "#c0392b";
+           statusEl.style.background = "#fadbd8";
+         }
+      }
+
+      if (isInZone) {
+        let wBox = document.getElementById('warningBox');
+        if(wBox) wBox.style.display = "none";
+        hasNotifiedExit = false; 
+        
+        if (!session && locked && lockedKat && !hasNotifiedEntry && !isSedangHadir && !isSudahKeluar && !isTidakHadir) {
+          hasNotifiedEntry = true;
+          sendNotification("ANDA SUDAH SAMPAI!", "Sila klik di sini untuk buka aplikasi", "wake-up-entry");
+        }
+
+        if (!session && locked && lockedKat && !isSubmitting && !isSedangHadir && !isSudahKeluar && !isTidakHadir) {
+          if (inZoneStart > 0) {
+            let elapsed = now - inZoneStart;
+            let remainingSec = Math.ceil((MS_IN_DELAY - elapsed) / 1000);
+            
+            if(statusEl && !statusEl.innerHTML.includes('SEMAK & AKTIFKAN')) statusEl.innerHTML += ` <br>[AUTO-PUNCH IN: ${remainingSec}s]`;
+            
+            if (remainingSec <= 0) {
+              hantarMasuk(true);
+              inZoneStart = 0; 
+            }
+          }
+        }
+      } 
+      else {
+        hasNotifiedEntry = false; 
+
+        if (isSedangHadir) {
+          if (!hasNotifiedExit) {
+            hasNotifiedExit = true;
+            sendNotification("ANDA TELAH KELUAR KAWASAN!", "Anda dikesan telah meninggalkan pejabat. Auto Punch-Out akan bermula.", "wake-up-exit");
+          }
+
+          if (!isSubmitting) {
+             if (outZoneStart > 0) {
+               let elapsed = now - outZoneStart;
+               let remainingSec = Math.ceil((MS_OUT_DELAY - elapsed) / 1000);
+               
+               let warnBox = document.getElementById('warningBox');
+               if(warnBox) {
+                 warnBox.style.display = "block";
+                 warnBox.innerHTML = `AMARAN! KELUAR ZON.<br>AUTO PUNCH-OUT DALAM <span style="font-size:1.5em">${remainingSec}</span> S`;
+               }
+
+               if (remainingSec <= 0) {
+                 hantarKeluar(true);
+                 outZoneStart = 0;
+               }
+             }
+          }
+        } else {
+           let wBox = document.getElementById('warningBox');
+           if(wBox) wBox.style.display = "none";
+           outZoneStart = 0;
+        }
+      }
+    }
+
+    function handleGPSError(err) {
+      let statusEl = document.getElementById('statusText');
+      let msg = "Sila aktifkan GPS (Location) anda.";
+      if (err.code === 1) msg = "Sila benarkan akses Lokasi (GPS) browser.";
+      else if (err.code === 2) msg = "GPS tidak dikesan. Pastikan 'Location' dihidupkan.";
+      else if (err.code === 3) msg = "Pencarian GPS Timeout. Sila cuba lagi.";
+
+      if (statusEl) {
+         let icon = "<img src='https://cdn-icons-png.flaticon.com/128/190/190406.png' class='icon-3d-mini'>";
+         statusEl.innerHTML = icon + " " + msg;
+         statusEl.style.color = "#c0392b";
+         statusEl.style.background = "#fadbd8";
+      }
+      
+      let btnGps = document.getElementById('btnRetryGPS');
+      if(btnGps) btnGps.style.display = 'flex';
+
+      if (!sessionStorage.getItem('gps_warned_interval')) {
+         showModernAlert(
+           "GPS Diperlukan / Tidak Aktif", 
+           "Perhatian: GPS anda didapati <b>TIDAK AKTIF</b> atau tiada kebenaran lokasi.<br><br>Sila hidupkan <b>'Location/GPS'</b> di tetapan telefon anda atau benarkan pelayar web ini mengakses lokasi, kemudian klik butang di bawah.", 
+           "gps",
+           retryGPS
+         );
+         sessionStorage.setItem('gps_warned_interval', 'true');
+         setTimeout(() => { sessionStorage.removeItem('gps_warned_interval'); }, 15000);
+      }
+    }
+
+    function retryGPS() {
+      let statusEl = document.getElementById('statusText');
+      if(statusEl) {
+         statusEl.innerHTML = `<img src="https://cdn-icons-png.flaticon.com/128/9357/9357448.png" class="icon-3d-mini spin-3d"> Sedang mencari GPS semula...`;
+         statusEl.style.color = "#1e3c72";
+         statusEl.style.background = "#e0eafc";
+      }
+      let btnGps = document.getElementById('btnRetryGPS');
+      if(btnGps) btnGps.style.display = 'none';
+      
+      startRadar();
+    }
+
+    function startRadar() {
+      if (navigator.geolocation) {
+        if (gpsWatchId) navigator.geolocation.clearWatch(gpsWatchId);
+        gpsWatchId = navigator.geolocation.watchPosition(pos => {
+          let btnGps = document.getElementById('btnRetryGPS');
+          if(btnGps) btnGps.style.display = 'none';
+
+          lastLat = pos.coords.latitude; lastLng = pos.coords.longitude;
+          currentDist = calcDist(lastLat, lastLng, SCHOOL_LAT, SCHOOL_LNG);
+          isInZone = (currentDist <= RADIUS_METER);
+          if (currentDist > RADIUS_RESET_AUTO_IN) {
+            localStorage.removeItem('ehadir_auto_in_blocked');
+          }
+          if (isInZone) {
+            if (!inZoneStart) inZoneStart = Date.now();
+            outZoneStart = 0; 
+          } else {
+            if (!outZoneStart) outZoneStart = Date.now();
+            inZoneStart = 0; 
+          }
+        }, err => {
+          handleGPSError(err);
+        }, {enableHighAccuracy: true, maximumAge: 0, timeout: 5000});
+      } else {
+        showModernAlert("Ralat", "Peranti anda tidak menyokong fungsi GPS.", "error");
+      }
+    }
+
+    function calcDist(a, b, c, d) {
+      var R = 6371e3;
+      var x = a * Math.PI / 180;
+      var y = c * Math.PI / 180;
+      var k = (c - a) * Math.PI / 180;
+      var l = (d - b) * Math.PI / 180;
+      var z = Math.sin(k / 2) * Math.sin(k / 2) + Math.cos(x) * Math.cos(y) * Math.sin(l / 2) * Math.sin(l / 2);
+      return R * 2 * Math.atan2(Math.sqrt(z), Math.sqrt(1 - z));
+    }
+
+    async function initBackgroundService() {
+      if ("Notification" in window) {
+         if(Notification.permission !== "granted") {
+            await Notification.requestPermission();
+         }
+      }
+      if ('wakeLock' in navigator) {
+        const requestLock = async () => {
+          try {
+            wakeLock = await navigator.wakeLock.request('screen');
+            let am = document.getElementById('autoModeIndicator');
+            if(am) am.style.display = 'block';
+            wakeLock.addEventListener('release', () => { console.log('Wake Lock Released'); });
+          } catch (err) { console.error(`${err.name}, ${err.message}`); }
+        };
+        await requestLock();
+        document.addEventListener('visibilitychange', async () => {
+          if (wakeLock !== null && document.visibilityState === 'visible') {
+            await requestLock();
+          } else {
+             await requestLock();
+          }
+        });
+      }
+    }
+
+    function openCutiWorkflow() {
+      isCutiModeActive = true;
+      showModernAlert(
+        "PERINGATAN MESRA", 
+        "Sila rancang cuti anda, maklumkan pada Pentadbir terlebih dahulu, dan jangan lupa terus kemaskini di HRMIS. Jika TUAN/PUAN ada urusan lain juga boleh isi ke dalam sistem ini sebagai makluman keberadaan. ", 
+        "info",
+        null
+      );
+      document.getElementById('modalBtnRow').innerHTML = `<button class="modal-btn btn-cancel-modal" onclick="batalOpenCuti()">Batal</button> <button class="modal-btn btn-ok" onclick="proceedToCuti()">Teruskan</button>`;
+    }
+
+    function batalOpenCuti() {
+      closeCustomModal();
+      isCutiModeActive = false;
+    }
+
+    function proceedToCuti() {
+      closeCustomModal();
+      document.getElementById('defaultForm').style.display = 'none';
+      document.getElementById('dashboardPanel').style.display = 'none';
+      document.getElementById('cutiMainPanel').style.display = 'block';
+      loadCutiHistory();
+    }
+
+    function showBorangCuti() {
+      document.getElementById('cutiMainPanel').style.display = 'none';
+      document.getElementById('borangCutiPanel').style.display = 'block';
+      let lName = localStorage.getItem('ehadir_locked_name') || (document.getElementById('nama') ? document.getElementById('nama').value : "");
+      let lKat = localStorage.getItem('ehadir_locked_kat') || (document.getElementById('kategori') ? document.getElementById('kategori').value : "");
+      if(lName) {
+          document.getElementById('cutiNama').value = lName;
+          if(lKat) document.getElementById('cutiKategori').value = lKat;
+      }
+      if (document.getElementById('cutiBuktiInput')) document.getElementById('cutiBuktiInput').value = "";
+      if (document.getElementById('cutiBuktiBase64')) document.getElementById('cutiBuktiBase64').value = "";
+      if (document.getElementById('cutiBuktiPreview')) document.getElementById('cutiBuktiPreview').style.display = 'none';
+      if (document.getElementById('cutiBuktiFilename')) document.getElementById('cutiBuktiFilename').style.display = 'none';
+    }
+
+    function cancelBorangCuti() {
+      document.getElementById('borangCutiPanel').style.display = 'none';
+      document.getElementById('cutiMainPanel').style.display = 'block';
+      if (document.getElementById('cutiBuktiInput')) document.getElementById('cutiBuktiInput').value = "";
+      if (document.getElementById('cutiBuktiBase64')) document.getElementById('cutiBuktiBase64').value = "";
+      if (document.getElementById('cutiBuktiPreview')) document.getElementById('cutiBuktiPreview').style.display = 'none';
+      if (document.getElementById('cutiBuktiFilename')) document.getElementById('cutiBuktiFilename').style.display = 'none';
+    }
+
+    function processCutiBukti(i) {
+      let p = document.getElementById('cutiBuktiPreview');
+      let fnSpan = document.getElementById('cutiBuktiFilename');
+      if(!fnSpan) {
+        fnSpan = document.createElement('div');
+        fnSpan.id = 'cutiBuktiFilename';
+        fnSpan.style.fontSize = '11px';
+        fnSpan.style.marginTop = '5px';
+        fnSpan.style.color = '#3498db';
+        fnSpan.style.fontWeight = 'bold';
+        if(p) p.parentNode.insertBefore(fnSpan, p.nextSibling);
+      }
+
+      if (i.files && i.files[0]) {
+        let file = i.files[0];
+        
+        if (file.type.startsWith('image/')) {
+          let r = new FileReader();
+          r.onload = function(e) {
+            let im = new Image();
+            im.src = e.target.result;
+            im.onload = function() {
+              let cv = document.createElement("canvas");
+              let ctx = cv.getContext("2d");
+              let maxW = 800;
+              let scale = 1;
+              if (im.width > maxW) scale = maxW / im.width;
+              cv.width = maxW;
+              cv.height = im.height * scale;
+              ctx.drawImage(im, 0, 0, cv.width, cv.height);
+              let d = cv.toDataURL("image/jpeg", 0.7);
+              
+              let base64Input = document.getElementById('cutiBuktiBase64');
+              if(base64Input) base64Input.value = d;
+              if (p) {
+                p.src = d;
+                p.style.display = 'block';
+              }
+              fnSpan.style.display = 'none';
+            };
+          };
+          r.readAsDataURL(file);
+        } else {
+          let r = new FileReader();
+          r.onload = function(e) {
+            let d = e.target.result;
+            let base64Input = document.getElementById('cutiBuktiBase64');
+            if(base64Input) base64Input.value = d;
+            
+            if (p) p.style.display = 'none';
+            fnSpan.innerText = "📄 Fail dilampirkan: " + file.name;
+            fnSpan.style.display = 'block';
+          };
+          r.readAsDataURL(file);
+        }
+      } else {
+        if(p) p.style.display = 'none';
+        if(fnSpan) fnSpan.style.display = 'none';
+        let base64Input = document.getElementById('cutiBuktiBase64');
+        if(base64Input) base64Input.value = "";
+      }
+    }
+
+    function viewCutiBukti(url) {
+      window.open(url, '_blank');
+    }
+
+    function exitCutiModule() {
+      isCutiModeActive = false;
+      document.getElementById('cutiMainPanel').style.display = 'none';
+      let s = JSON.parse(localStorage.getItem('ehadir_session'));
+      if(s && s.date === getTodayStr()) {
+        document.getElementById('dashboardPanel').style.display = 'block';
+      } else {
+        document.getElementById('defaultForm').style.display = 'block';
+      }
+    }
+
+    function submitCutiForm() {
+      let nama = document.getElementById('cutiNama').value.toUpperCase().trim();
+      let kategori = document.getElementById('cutiKategori').value;
+      let tarikhMulaRaw = document.getElementById('cutiMula').value;
+      let tarikhTamatRaw = document.getElementById('cutiTamat').value;
+      let jenisCuti = document.getElementById('cutiJenis').value.trim();
+      let alasan = document.getElementById('cutiAlasan').value.trim();
+      let buktiBase64 = document.getElementById('cutiBuktiBase64') ? document.getElementById('cutiBuktiBase64').value : "";
+      
+      let fileInput = document.getElementById('cutiBuktiInput');
+      let fileName = (fileInput && fileInput.files && fileInput.files.length > 0) ? fileInput.files[0].name : "";
+
+      if(!nama || !kategori || !tarikhMulaRaw || !tarikhTamatRaw || !jenisCuti || !alasan) {
+        showModernAlert("Tidak Lengkap", "Sila isi semua ruangan borang cuti.", "error");
+        return;
+      }
+      if(tarikhMulaRaw > tarikhTamatRaw) {
+        showModernAlert("Ralat Tarikh", "Tarikh Tamat mestilah sama atau selepas Tarikh Mula.", "error");
+        return;
+      }
+
+      let tarikhMula = tarikhMulaRaw.split('-').reverse().join('.');
+      let tarikhTamat = tarikhTamatRaw.split('-').reverse().join('.');
+
+      showModernAlert(
+        "Pengesahan Pentadbir", 
+        "Sila maklumkan kepada Ketua Jabatan anda terlebih dahulu sebelum memohon cuti ini. Teruskan?", 
+        "confirm", 
+        async function() {
+          let btn = document.getElementById('btnSubmitCuti');
+          btn.disabled = true;
+          btn.innerText = "Menghantar...";
+          try {
+            let payload = {
+              action: "MOHON_CUTI",
+              passcode: PASSCODE,
+              nama: nama,
+              kategori: kategori,
+              tarikhMula: tarikhMula,
+              tarikhTamat: tarikhTamat,
+              jenisCuti: jenisCuti,
+              alasan: alasan,
+              fotoBase64: buktiBase64,
+              fileName: fileName,
+              clientTime: new Date().toISOString()
+            };
+            let res = await sendData(payload);
+            if(!res.offline && res.data && res.data.result === "success") {
+              showModernAlert("Berjaya", "Permohonan cuti telah dihantar.", "success");
+              document.getElementById('borangCutiPanel').style.display = 'none';
+              document.getElementById('cutiMainPanel').style.display = 'block';
+              if (document.getElementById('cutiBuktiInput')) document.getElementById('cutiBuktiInput').value = "";
+              if (document.getElementById('cutiBuktiBase64')) document.getElementById('cutiBuktiBase64').value = "";
+              if (document.getElementById('cutiBuktiPreview')) document.getElementById('cutiBuktiPreview').style.display = 'none';
+              if (document.getElementById('cutiBuktiFilename')) document.getElementById('cutiBuktiFilename').style.display = 'none';
+              loadCutiHistory();
+            } else {
+              showModernAlert("Ralat", res.data ? res.data.msg : "Gagal hantar.", "error");
+            }
+          } catch(e) {
+            showModernAlert("Ralat", "Gagal menghubungi server.", "error");
+          } finally {
+            btn.disabled = false;
+            btn.innerText = "HANTAR PERMOHONAN";
+          }
+        }
+      );
+    }
+
+    async function loadCutiHistory() {
+      let container = document.getElementById('cutiHistoryList');
+      container.innerHTML = "<div style='padding:10px;text-align:center;font-size:12px;'>Memuatkan sejarah...</div>";
+      let lName = localStorage.getItem('ehadir_locked_name') || (document.getElementById('nama') ? document.getElementById('nama').value.toUpperCase().trim() : "");
+      if(!lName) {
+          container.innerHTML = "<div style='padding:10px;text-align:center;font-size:12px;'>Sila KUNCI nama anda terlebih dahulu di menu utama untuk melihat sejarah.</div>";
           return;
       }
 
-      setLoading(true, "Mencari Sejarah...");
-      apiCall('getAttendanceHistory', { tarikh, kelas }).then(res => {
-         currentHistoryData = res.data; 
-         renderStudents();
-         setLoading(false);
-      }).catch(err => {
-         customAlert("Gagal mendapatkan sejarah.");
-         currentHistoryData = null;
-         renderStudents();
-         setLoading(false);
-      });
-    }
-
-    function showFullImage(src) {
-       const imgPreview = document.getElementById('full-image-preview');
-       imgPreview.src = src;
-       document.getElementById('full-image-modal').classList.remove('hidden');
-    }
-
-    function closeFullImage() {
-       document.getElementById('full-image-modal').classList.add('hidden');
-    }
-
-    function renderStudents() {
-      const container = document.getElementById('student-list');
-      container.innerHTML = '';
-      const selectedKelas = document.getElementById('kelas-select').value;
-      const tarikhPilihan = document.getElementById('tarikh-kehadiran').value;
-      const todayStr = getTodayString();
-      const btnSubmit = document.getElementById('btn-submit-kehadiran');
-      
-      if(!selectedKelas) {
-        container.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">Sila pilih kelas untuk papar senarai.</p>';
-        updateAttendanceSummary();
-        if(btnSubmit) btnSubmit.innerHTML = '<i data-lucide="clipboard-check" class="w-5 h-5"></i> Simpan Kehadiran Murid';
-        lucide.createIcons();
-        return;
-      }
-      
-      const filtered = students.filter(s => s.kelas === selectedKelas);
-      
-      // SUSUNAN NAMA MURID A-Z
-      filtered.sort((a, b) => a.nama.localeCompare(b.nama));
-      
-      if(filtered.length === 0) {
-        container.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">Tiada nama di dalam kelas ini.</p>';
-        if(btnSubmit) btnSubmit.innerHTML = '<i data-lucide="clipboard-check" class="w-5 h-5"></i> Simpan Kehadiran Murid';
-      } else {
-        let attendanceTaken = false;
-        if (tarikhPilihan === todayStr) {
-            attendanceTaken = filtered.some(s => s.tarikhTerakhir === todayStr);
-        } else {
-            attendanceTaken = (currentHistoryData && currentHistoryData.length > 0);
+      try {
+        let res = await fetch(API_URL, { method: "POST", cache: "no-store", body: JSON.stringify({action: "GET_CUTI", mode: "history", nama: lName, passcode: PASSCODE}) });
+        let json = await res.json();
+        let list = json.data || json;
+        if(list.length === 0) {
+            container.innerHTML = "<div style='padding:10px;text-align:center;font-size:12px;color:#7f8c8d;'>Tiada rekod cuti ditemui.</div>";
+            return;
         }
-        
-        if (btnSubmit) {
-            if (attendanceTaken) {
-                btnSubmit.innerHTML = '<i data-lucide="clipboard-check" class="w-5 h-5"></i> Simpan Kemaskini Markah';
-            } else {
-                btnSubmit.innerHTML = '<i data-lucide="clipboard-check" class="w-5 h-5"></i> Simpan Kehadiran Murid';
-            }
-        }
-      }
-      
-      let historyMap = {};
-      if (currentHistoryData) {
-         currentHistoryData.forEach(item => {
-             historyMap[item.nama.toUpperCase()] = item;
-         });
-      }
-
-      filtered.forEach((std) => {
-        let currentStar = 3;
-        let isChecked = true;
-
-        if (tarikhPilihan !== todayStr) {
-            if (historyMap[std.nama.toUpperCase()]) {
-                currentStar = historyMap[std.nama.toUpperCase()].bintang;
-                isChecked = historyMap[std.nama.toUpperCase()].hadir;
-            } else {
-                currentStar = 0;
-                isChecked = false;
-            }
-        } else {
-            if (std.tarikhTerakhir === todayStr) {
-                currentStar = std.bintangTerakhir;
-                isChecked = currentStar > 0;
-            }
-        }
-
-        let starHtml = '';
-        for(let i=1; i<=6; i++) {
-          let colorClass = (i <= currentStar && isChecked) ? 'text-yellow-500 fill-yellow-500' : 'text-gray-600 fill-transparent';
-          let pointerClass = isChecked ? 'cursor-pointer hover:scale-110' : 'cursor-not-allowed opacity-50';
-          starHtml += `
-            <svg onclick="setStar('${std.domId}', ${i})" class="w-6 h-6 sm:w-7 sm:h-7 ${colorClass} ${pointerClass} transition-all duration-200" data-star="${i}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-            </svg>`;
-        }
-
-        // Default avatar jika tiada gambar
-        let safeName = encodeURIComponent(std.nama);
-        let imgAvatar = std.gambar ? std.gambar : `https://ui-avatars.com/api/?name=${safeName}&background=2a2a2a&color=FFCC00`;
-
-        const card = document.createElement('div');
-        card.className = 'neu-flat p-4 flex flex-col gap-2 border border-yellow-500/10';
-        card.innerHTML = `
-          <div class="flex justify-between items-center border-b border-gray-800 pb-3 mb-1">
-            <div class="flex items-center gap-3">
-              <input type="checkbox" id="hadir-${std.domId}" ${isChecked ? 'checked' : ''} onchange="toggleAttendance('${std.domId}')" class="w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0 cursor-pointer rounded bg-gray-900 border-gray-700">
-              <img src="${imgAvatar}" onerror="this.src='https://ui-avatars.com/api/?name=${safeName}&background=2a2a2a&color=FFCC00'" class="w-12 h-12 rounded-full object-cover border-2 border-yellow-500/50 cursor-pointer hover:scale-105 transition-transform flex-shrink-0 shadow-md" onclick="showFullImage('${imgAvatar}')">
-              <div>
-                <p class="font-bold text-gray-200 leading-tight uppercase">${std.nama}</p>
-                <p class="text-xs text-yellow-500 mt-1">Terkumpul: <span id="terkumpul-${std.domId}">${std.prestasi}</span> ⭐</p>
-              </div>
-            </div>
-            <button onclick="editMurid('${std.nama}')" class="p-2 text-gray-400 hover:text-yellow-500 transition">
-              <i data-lucide="edit-2" class="w-5 h-5"></i>
-            </button>
-          </div>
-          <div class="flex justify-between items-center mt-2">
-            <span class="text-sm font-semibold text-gray-400">Bintang:</span>
-            <div class="flex items-center gap-1" id="star-container-${std.domId}">
-              ${starHtml}
-              <input type="hidden" id="star-val-${std.domId}" value="${isChecked ? currentStar : 0}">
-            </div>
-          </div>
-        `;
-        container.appendChild(card);
-      });
-      lucide.createIcons();
-      updateAttendanceSummary();
-    }
-
-    function updateAttendanceSummary() {
-      const selectedKelas = document.getElementById('kelas-select').value;
-      const summaryDiv = document.getElementById('attendance-summary');
-      
-      if (!selectedKelas) {
-        summaryDiv.classList.add('hidden');
-        return;
-      }
-      
-      const stdInClass = students.filter(s => s.kelas === selectedKelas);
-      if (stdInClass.length === 0) {
-        summaryDiv.classList.add('hidden');
-        return;
-      }
-      
-      let absentCount = 0;
-      stdInClass.forEach(std => {
-        const cb = document.getElementById(`hadir-${std.domId}`);
-        if (cb && !cb.checked) {
-          absentCount++;
-        }
-      });
-      
-      const total = stdInClass.length;
-      const presentCount = total - absentCount;
-      
-      summaryDiv.classList.remove('hidden');
-      summaryDiv.innerHTML = `
-        <div class="text-sm text-gray-400 mb-1">Analisis Kehadiran Kelas ${selectedKelas}</div>
-        <div class="text-lg">
-          <span class="text-green-400">${presentCount} Hadir</span> <span class="text-gray-500 mx-2">|</span> <span class="text-red-400">${absentCount} Tidak Hadir</span>
-        </div>
-      `;
-    }
-
-    function toggleAttendance(domId) {
-      const isChecked = document.getElementById(`hadir-${domId}`).checked;
-      const container = document.getElementById(`star-container-${domId}`);
-      const svgs = container.querySelectorAll('svg');
-      
-      if (!isChecked) {
-        document.getElementById(`star-val-${domId}`).value = 0;
-        svgs.forEach(svg => {
-          svg.classList.remove('text-yellow-500', 'fill-yellow-500', 'cursor-pointer', 'hover:scale-110');
-          svg.classList.add('text-gray-600', 'fill-transparent', 'cursor-not-allowed', 'opacity-50');
-        });
-      } else {
-        document.getElementById(`star-val-${domId}`).value = 3;
-        svgs.forEach((svg, index) => {
-          svg.classList.remove('cursor-not-allowed', 'opacity-50');
-          svg.classList.add('cursor-pointer', 'hover:scale-110');
-          if (index < 3) {
-            svg.classList.remove('text-gray-600', 'fill-transparent');
-            svg.classList.add('text-yellow-500', 'fill-yellow-500');
-          } else {
-            svg.classList.remove('text-yellow-500', 'fill-yellow-500');
-            svg.classList.add('text-gray-600', 'fill-transparent');
-          }
-        });
-      }
-      updateAttendanceSummary();
-    }
-
-    function setStar(domId, val) {
-      const isChecked = document.getElementById(`hadir-${domId}`).checked;
-      if(!isChecked) return;
-      
-      document.getElementById(`star-val-${domId}`).value = val;
-      const container = document.getElementById(`star-container-${domId}`);
-      const svgs = container.querySelectorAll('svg');
-      svgs.forEach((svg, index) => {
-        if (index < val) {
-          svg.classList.remove('text-gray-600', 'fill-transparent');
-          svg.classList.add('text-yellow-500', 'fill-yellow-500');
-        } else {
-          svg.classList.remove('text-yellow-500', 'fill-yellow-500');
-          svg.classList.add('text-gray-600', 'fill-transparent');
-        }
-      });
-    }
-
-    function switchMainTab(tab) {
-      const isKehadiran = tab === 'kehadiran';
-      document.getElementById('tab-kehadiran').classList.toggle('hidden', !isKehadiran);
-      document.getElementById('tab-pelaporan').classList.toggle('hidden', isKehadiran);
-      
-      const btnK = document.getElementById('btn-tab-kehadiran');
-      const btnP = document.getElementById('btn-tab-pelaporan');
-      
-      if (isKehadiran) {
-        btnK.className = "flex-1 bg-[#FFCC00] text-black py-3 rounded-xl font-bold transition shadow-sm";
-        btnP.className = "flex-1 bg-transparent text-gray-400 py-3 rounded-xl font-bold transition";
-      } else {
-        btnP.className = "flex-1 bg-[#FFCC00] text-black py-3 rounded-xl font-bold transition shadow-sm";
-        btnK.className = "flex-1 bg-transparent text-gray-400 py-3 rounded-xl font-bold transition";
-      }
-    }
-
-    function switchReportTab(sub) {
-      const isBaru = sub === 'baru';
-      document.getElementById('pelaporan-baru-section').classList.toggle('hidden', !isBaru);
-      document.getElementById('pelaporan-sejarah-section').classList.toggle('hidden', isBaru);
-      
-      const btnBaru = document.getElementById('subtab-baru');
-      const btnSejarah = document.getElementById('subtab-sejarah');
-
-      if (isBaru) {
-        btnBaru.className = "text-yellow-500 font-bold px-2 py-1 border-b-2 border-yellow-500 transition";
-        btnSejarah.className = "text-gray-400 font-bold px-2 py-1 border-b-2 border-transparent transition";
-      } else {
-        btnSejarah.className = "text-yellow-500 font-bold px-2 py-1 border-b-2 border-yellow-500 transition";
-        btnBaru.className = "text-gray-400 font-bold px-2 py-1 border-b-2 border-transparent transition";
-        fetchReportHistory(); 
-      }
-    }
-
-    function checkGuruBeforeUpload() {
-       const guru = document.getElementById('guru-select').value;
-       if (!guru) {
-           customAlert("Sila pilih nama guru terlebih dahulu sebelum memuat naik gambar murid.");
-           return;
-       }
-       document.getElementById('murid-modal-gambar').click();
-    }
-
-    function handleMuridImageSelect(input) {
-       if (input.files && input.files[0]) {
-          const file = input.files[0];
-          const reader = new FileReader();
-          reader.onload = (e) => {
-              document.getElementById('murid-avatar-section').classList.add('hidden');
-              document.getElementById('murid-crop-section').classList.remove('hidden');
-              const cropImg = document.getElementById('murid-crop-image');
-              cropImg.src = e.target.result;
-              
-              if(cropper) cropper.destroy();
-              cropper = new Cropper(cropImg, {
-                  aspectRatio: 1,
-                  viewMode: 1,
-                  dragMode: 'move',
-                  autoCropArea: 1,
-                  restore: false,
-                  guides: false,
-                  center: false,
-                  highlight: false,
-                  cropBoxMovable: false,
-                  cropBoxResizable: false,
-                  toggleDragModeOnDblclick: false
-              });
-          };
-          reader.readAsDataURL(file);
-       }
-    }
-
-    function openAddMurid() {
-      if(!navigator.onLine) return customAlert('Memerlukan internet untuk operasi ini.');
-      tempMuridImage = null;
-      if(cropper) { cropper.destroy(); cropper = null; }
-      document.getElementById('murid-avatar-section').classList.remove('hidden');
-      document.getElementById('murid-crop-section').classList.add('hidden');
-      document.getElementById('murid-modal-img-preview').src = "https://ui-avatars.com/api/?name=Baru&background=2a2a2a&color=FFCC00";
-      document.getElementById('murid-modal-gambar').value = "";
-      document.getElementById('murid-modal-title').innerText = 'Tambah Murid Baharu';
-      document.getElementById('murid-modal-oldnama').value = '';
-      document.getElementById('murid-modal-nama').value = '';
-      document.getElementById('murid-modal-kelas').value = document.getElementById('kelas-select').value || '';
-      document.getElementById('murid-modal-delete').classList.add('hidden');
-      document.getElementById('murid-modal').classList.remove('hidden');
-    }
-
-    function editMurid(nama) {
-      if(!navigator.onLine) return customAlert('Memerlukan internet untuk operasi ini.');
-      const std = students.find(s => s.nama === nama);
-      if(std) {
-        tempMuridImage = null;
-        if(cropper) { cropper.destroy(); cropper = null; }
-        document.getElementById('murid-avatar-section').classList.remove('hidden');
-        document.getElementById('murid-crop-section').classList.add('hidden');
-        let safeName = encodeURIComponent(std.nama);
-        document.getElementById('murid-modal-img-preview').src = std.gambar ? std.gambar : `https://ui-avatars.com/api/?name=${safeName}&background=2a2a2a&color=FFCC00`;
-        document.getElementById('murid-modal-gambar').value = "";
-        document.getElementById('murid-modal-title').innerText = 'Ubah Suai Murid';
-        document.getElementById('murid-modal-oldnama').value = std.nama.toUpperCase();
-        document.getElementById('murid-modal-nama').value = std.nama.toUpperCase();
-        document.getElementById('murid-modal-kelas').value = std.kelas;
-        document.getElementById('murid-modal-delete').classList.remove('hidden');
-        document.getElementById('murid-modal').classList.remove('hidden');
-      }
-    }
-
-    function closeMuridModal() {
-      if(cropper) { cropper.destroy(); cropper = null; }
-      document.getElementById('murid-avatar-section').classList.remove('hidden');
-      document.getElementById('murid-crop-section').classList.add('hidden');
-      document.getElementById('murid-modal-gambar').value = '';
-      document.getElementById('murid-modal').classList.add('hidden');
-    }
-
-    function saveMurid() {
-      const oldNama = document.getElementById('murid-modal-oldnama').value.toUpperCase();
-      const nama = document.getElementById('murid-modal-nama').value.trim().toUpperCase();
-      const kelas = document.getElementById('murid-modal-kelas').value.trim();
-      const guru = document.getElementById('guru-select').value;
-      
-      if(!nama || !kelas) return customAlert('Sila isi nama dan kelas!');
-      
-      // Dapatkan data dari cropper jika diubah suai
-      if (cropper) {
-          const canvas = cropper.getCroppedCanvas({ width: 400, height: 400 });
-          const base64Url = canvas.toDataURL('image/jpeg', 0.8);
-          tempMuridImage = {
-              mimeType: 'image/jpeg',
-              data: base64Url.split(',')[1]
-          };
-      }
-
-      let payload = { oldNama, nama, kelas, guru };
-      if (tempMuridImage) {
-         payload.gambarData = tempMuridImage.data;
-         payload.gambarMime = tempMuridImage.mimeType;
-      }
-
-      setLoading(true, "Menyimpan Data...");
-      closeMuridModal();
-      
-      let apiEndpoint = oldNama ? 'updateMurid' : 'addMurid';
-      
-      apiCall(apiEndpoint, payload).then((res) => {
-        if(res.pointsEarned && res.pointsEarned > 0) {
-           customAlert(`Tahniah cikgu! Anda dapat +${res.pointsEarned} point kerana memuat naik gambar murid.`);
-        } else {
-           customAlert(`Maklumat murid berjaya disimpan!`);
-        }
-        loadInitialData(); 
-      }).catch(err => { customAlert('Gagal: ' + err); setLoading(false); });
-    }
-
-    function deleteMuridAction() {
-      const nama = document.getElementById('murid-modal-oldnama').value.toUpperCase();
-      if(!nama) return;
-      
-      customConfirm('Padam rekod ini secara kekal?', () => {
-        closeMuridModal();
-        setLoading(true, "Memadam Data...");
-        apiCall('deleteMurid', { nama }).then(() => {
-          loadInitialData();
-        }).catch(err => { customAlert('Gagal: ' + err); setLoading(false); });
-      });
-    }
-
-    async function fetchGPS() {
-      return new Promise((resolve) => {
-        if (!navigator.geolocation) return resolve("Tiada GPS");
-        navigator.geolocation.getCurrentPosition(
-          (pos) => resolve(`${pos.coords.latitude}, ${pos.coords.longitude}`),
-          () => resolve("Lokasi Ditolak")
-        );
-      });
-    }
-
-    function handleFileSelect(input) {
-      if (input.files && input.files.length > 0) {
-        for (let i = 0; i < input.files.length; i++) {
-          reportFileQueue.push(input.files[i]);
-        }
-        input.value = ""; 
-        renderFileQueue();
-      }
-    }
-
-    function renderFileQueue() {
-      const container = document.getElementById('file-queue-container');
-      container.innerHTML = '';
-      reportFileQueue.forEach((file, index) => {
-        let iconName = "file-text";
-        let iconColor = "text-gray-400";
-        
-        if (file.type.startsWith('image/')) {
-          iconName = "image";
-          iconColor = "text-yellow-500";
-        } else if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
-          iconName = "file-text";
-          iconColor = "text-red-500";
-        } else if (file.name.match(/\.(doc|docx)$/i)) {
-          iconName = "file-text";
-          iconColor = "text-blue-500";
-        } else if (file.name.match(/\.(xls|xlsx)$/i)) {
-          iconName = "table";
-          iconColor = "text-green-500";
-        }
-
-        container.innerHTML += `
-          <div class="flex justify-between items-center p-3 bg-gray-900 rounded-xl border border-gray-700">
-            <div class="flex items-center gap-2 truncate w-5/6">
-              <i data-lucide="${iconName}" class="w-5 h-5 ${iconColor} flex-shrink-0"></i>
-              <span class="text-sm text-gray-300 truncate">${file.name}</span>
-            </div>
-            <button type="button" onclick="removeQueuedFile(${index})" class="text-red-400 hover:text-red-300 p-1 flex-shrink-0">
-              <i data-lucide="trash-2" class="w-5 h-5"></i>
-            </button>
-          </div>
-        `;
-      });
-      lucide.createIcons();
-    }
-
-    function removeQueuedFile(index) {
-      reportFileQueue.splice(index, 1);
-      renderFileQueue();
-    }
-
-    function removeOldFile(index) {
-      if(editingReportState && editingReportState.oldAttachments) {
-         editingReportState.oldAttachments.splice(index, 1);
-         renderOldFiles();
-      }
-    }
-
-    function renderOldFiles() {
-       const container = document.getElementById('old-file-container');
-       container.innerHTML = '';
-       if(!editingReportState || !editingReportState.oldAttachments) return;
-
-       editingReportState.oldAttachments.forEach((attStr, index) => {
-          let isImg = attStr.startsWith('[IMAGE');
-          let nameMatch = attStr.match(/\[.*?\|(.*?)\]/);
-          let name = nameMatch ? nameMatch[1] : "Fail Lama";
-          let iconName = isImg ? "image" : "file-text";
-          let iconColor = isImg ? "text-yellow-500" : "text-gray-400";
-
-          container.innerHTML += `
-          <div class="flex justify-between items-center p-3 bg-gray-800 rounded-xl border border-gray-600 opacity-80">
-            <div class="flex items-center gap-2 truncate w-5/6">
-              <i data-lucide="${iconName}" class="w-5 h-5 ${iconColor} flex-shrink-0"></i>
-              <span class="text-sm text-gray-300 truncate">[Telah Disimpan] ${name}</span>
-            </div>
-            <button type="button" onclick="removeOldFile(${index})" class="text-red-400 hover:text-red-300 p-1 flex-shrink-0" title="Padam fail lama">
-              <i data-lucide="trash-2" class="w-5 h-5"></i>
-            </button>
-          </div>
-          `;
-       });
-       lucide.createIcons();
-    }
-
-    function compressImage(file) {
-      return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const img = new Image();
-          img.onload = () => {
-            const canvas = document.createElement('canvas');
-            const max_w = 800;
-            const scale = Math.min(max_w / img.width, 1);
-            canvas.width = img.width * scale;
-            canvas.height = img.height * scale;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-            resolve(canvas.toDataURL('image/jpeg', 0.7));
-          };
-          img.src = e.target.result;
-        };
-        reader.readAsDataURL(file);
-      });
-    }
-
-    function toBase64(file) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = error => reject(error);
-      });
-    }
-
-    async function processUploadFiles(files) {
-      let processed = [];
-      for (let i = 0; i < files.length; i++) {
-        let file = files[i];
-        let b64 = "";
-        if (file.type.startsWith('image/')) {
-          b64 = await compressImage(file);
-        } else {
-          b64 = await toBase64(file);
-        }
-        processed.push({
-          name: file.name,
-          mimeType: file.type,
-          data: b64.split(',')[1]
-        });
-      }
-      return processed;
-    }
-
-    async function submitAttendance() {
-      const guru = document.getElementById('guru-select').value;
-      const kelas = document.getElementById('kelas-select').value;
-      const tarikh = document.getElementById('tarikh-kehadiran').value;
-      
-      if(!guru || !kelas || !tarikh) return customAlert('Sila lengkapkan pilihan guru, kelas & tarikh!');
-      
-      const stdInClass = students.filter(s => s.kelas === kelas);
-      if(stdInClass.length === 0) return customAlert('Tiada murid untuk disimpan.');
-
-      setLoading(true, "Menyimpan Markah...");
-      const gps = await fetchGPS();
-
-      const muridData = stdInClass.map(std => {
-        const hadir = document.getElementById(`hadir-${std.domId}`).checked;
-        const bintang = parseInt(document.getElementById(`star-val-${std.domId}`).value);
-        return { nama: std.nama.toUpperCase(), hadir, bintang };
-      });
-
-      const payload = { 
-        type: 'attendance', 
-        guru, 
-        kelas, 
-        tarikh, 
-        muridData, 
-        gps 
-      };
-
-      handleSubmission('processAttendance', payload, `Maklumat Kelas ${kelas} bagi tarikh ${formatDateMY(tarikh)} Berjaya Disimpan!`);
-    }
-
-    async function submitReport() {
-      const guru = document.getElementById('guru-select').value;
-      const kelas = document.getElementById('kelas-select').value;
-      const tarikh = document.getElementById('tarikh-laporan-baru').value;
-      const ulasan = document.getElementById('ulasan').value;
-      
-      if(!guru || !kelas || !tarikh) return customAlert('Sila pilih nama guru, kelas & tarikh di atas!');
-      
-      let oldFilesCount = editingReportState ? editingReportState.oldAttachments.length : 0;
-      if(!ulasan && reportFileQueue.length === 0 && oldFilesCount === 0) return customAlert('Sila isi ulasan atau muat naik fail!');
-
-      setLoading(true, "Memproses Fail & Upload...");
-      const gps = await fetchGPS();
-      let processedFiles = await processUploadFiles(reportFileQueue);
-
-      if (editingReportState) {
-         const payload = {
-            type: 'updateReport',
-            tarikh: editingReportState.tarikh,
-            timestamp: editingReportState.timestamp,
-            guru,
-            kelas,
-            ulasan,
-            files: processedFiles,
-            oldAttachments: editingReportState.oldAttachments
-         };
-         handleSubmission('updateReport', payload, "Laporan Berjaya Dikemaskini!");
-      } else {
-         const payload = { 
-           type: 'report', 
-           guru, 
-           kelas,
-           tarikh,
-           ulasan, 
-           files: processedFiles, 
-           gps
-         };
-         handleSubmission('processReport', payload, "Laporan & Dokumentasi Berjaya Dihantar!");
-      }
-    }
-
-    function handleSubmission(endpoint, payload, successMsg) {
-      if (navigator.onLine) {
-        apiCall(endpoint, payload).then(res => {
-          setLoading(false);
-          if(res.pointsEarned !== undefined) {
-             customAlert(`${successMsg}\nPoint Tambahan Direkod: +${res.pointsEarned || 0}`);
-          } else {
-             customAlert(`${successMsg}`);
-          }
-          
-          if(endpoint === 'processReport' || endpoint === 'updateReport') {
-            document.getElementById('ulasan').value = '';
-            reportFileQueue = [];
-            renderFileQueue();
-            cancelEditReport();
-            switchReportTab('sejarah'); 
-          }
-          loadInitialData(); 
-        }).catch(err => {
-          setLoading(false);
-          customAlert('Ralat Pelayan: ' + err);
-        });
-      } else {
-        setLoading(false);
-        offlineQueue.push({ endpoint, payload });
-        localStorage.setItem('offlineQueue', JSON.stringify(offlineQueue));
-        customAlert("Talian terputus.\nDisimpan untuk segerak automatik.");
-      }
-    }
-
-    function fetchReportHistory() {
-      const tarikh = document.getElementById('tarikh-sejarah-laporan').value;
-      if(!tarikh) return;
-      
-      setLoading(true, "Mencari Laporan...");
-      apiCall('getReportHistory', { tarikh }).then(res => {
-        currentReportHistoryData = res.data;
-        renderReportHistory(currentReportHistoryData, tarikh);
-        setLoading(false);
-      }).catch(err => {
-        customAlert("Gagal mendapat laporan: " + err);
-        setLoading(false);
-      });
-    }
-
-    function editLaporan(index) {
-       const laporan = currentReportHistoryData[index];
-       editingReportState = { ...laporan };
-       editingReportState.tarikh = document.getElementById('tarikh-sejarah-laporan').value;
-       
-       let textOnly = "";
-       let ulasanMatch = laporan.maklumat.match(/Ulasan: ([\s\S]*?) \n\nLampiran:/);
-       if(ulasanMatch) textOnly = ulasanMatch[1];
-       else textOnly = laporan.maklumat
-            .replace(/\[IMAGE\|.*?\](https?:\/\/[^\s<]+)/g, '')
-            .replace(/\[FILE\|.*?\](https?:\/\/[^\s<]+)/g, '')
-            .replace(/Lampiran:\s*/g, '')
-            .replace(/^Ulasan:\s*/, '')
-            .trim();
+        let html = "";
+        let todayObj = new Date();
+        todayObj.setHours(0,0,0,0);
+        list.forEach(i => {
+            let isBatal = i.statusRekod.includes("BATAL");
+            let isSah = i.statusPengesahan === "DISAHKAN";
+            let iconSah = isSah ? "✔️" : "⏳";
+            let pengesahText = isSah ? `(Oleh: ${i.adminPengesah || 'Admin'})` : "";
+            let classCard = isBatal ? "cuti-batal" : (isSah ? "cuti-sah" : "");
             
-       if(textOnly === "Tiada") textOnly = "";
-
-       let allAttachments = [];
-       let match;
-       let imageRegex = /\[IMAGE\|(.*?)\](https?:\/\/[^\s<]+)/g;
-       while ((match = imageRegex.exec(laporan.maklumat)) !== null) {
-          allAttachments.push(`[IMAGE|${match[1]}]${match[2]}`);
-       }
-       let fileRegex = /\[FILE\|(.*?)\](https?:\/\/[^\s<]+)/g;
-       while ((match = fileRegex.exec(laporan.maklumat)) !== null) {
-          allAttachments.push(`[FILE|${match[1]}]${match[2]}`);
-       }
-       
-       editingReportState.oldAttachments = allAttachments;
-       
-       document.getElementById('tarikh-laporan-baru').value = editingReportState.tarikh;
-       document.getElementById('guru-select').value = laporan.guru;
-       document.getElementById('kelas-select').value = laporan.kelas;
-       document.getElementById('ulasan').value = textOnly;
-       
-       document.getElementById('laporan-form-title').innerText = "Kemaskini Laporan Sesi";
-       document.getElementById('btn-cancel-edit').classList.remove('hidden');
-       document.getElementById('btn-submit-report').innerHTML = '<i data-lucide="save" class="w-5 h-5"></i> Simpan Kemaskini Laporan';
-       
-       renderOldFiles();
-       switchReportTab('baru');
-       lucide.createIcons();
-       window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-
-    function cancelEditReport() {
-       editingReportState = null;
-       document.getElementById('ulasan').value = '';
-       document.getElementById('old-file-container').innerHTML = '';
-       document.getElementById('laporan-form-title').innerText = "Laporan Sesi & Dokumentasi";
-       document.getElementById('btn-cancel-edit').classList.add('hidden');
-       document.getElementById('btn-submit-report').innerHTML = '<i data-lucide="send" class="w-5 h-5"></i> Hantar Laporan Sesi';
-       checkLaporanDate();
-    }
-
-    function renderReportHistory(data, tarikhStr) {
-      const container = document.getElementById('report-history-container');
-      container.innerHTML = '';
-      const displayTarikh = formatDateMY(tarikhStr);
-
-      if(!data || data.length === 0) {
-         container.innerHTML = `<p class="text-sm text-gray-500 text-center py-4">Tiada laporan direkod pada ${displayTarikh}.</p>`;
-         return;
-      }
-
-      data.forEach((laporan, index) => {
-         
-         let textOnly = "";
-         let ulasanMatch = laporan.maklumat.match(/Ulasan: ([\s\S]*?) \n\nLampiran:/);
-         if(ulasanMatch) textOnly = ulasanMatch[1];
-         else textOnly = laporan.maklumat.replace(/\[IMAGE\|.*?\](https?:\/\/[^\s<]+)/g, '').replace(/\[FILE\|.*?\](https?:\/\/[^\s<]+)/g, '').replace(/Lampiran:\s*/g, '').replace(/^Ulasan:\s*/, '').trim();
-         
-         if(textOnly === "Tiada") textOnly = "";
-            
-         let imageMatches = [...laporan.maklumat.matchAll(/\[IMAGE\|(.*?)\](https?:\/\/[^\s<]+)/g)].map(m => {
-             let url = m[2];
-             if(url.indexOf('uc?export=view&id=') > -1) {
-                 url = url.replace('uc?export=view&id=', 'thumbnail?sz=w1000&id=');
-             }
-             return {name: m[1], url: url};
-         });
-         
-         let fileMatches = [...laporan.maklumat.matchAll(/\[FILE\|(.*?)\](https?:\/\/[^\s<]+)/g)].map(m => ({name: m[1], url: m[2]}));
-
-         let uiAttachmentsHtml = '';
-         
-         if (imageMatches.length > 0) {
-             uiAttachmentsHtml += `<div class="mt-4"><p class="text-sm font-bold text-yellow-500 mb-2">Lampiran Bergambar</p>`;
-             let gridClass = 'grid-cols-2';
-             if (imageMatches.length === 1) gridClass = 'grid-cols-1';
-             else if (imageMatches.length >= 3) gridClass = 'grid-cols-3';
-
-             uiAttachmentsHtml += `<div class="grid ${gridClass} gap-3 rounded-xl overflow-hidden">`;
-             imageMatches.forEach((img) => {
-                 uiAttachmentsHtml += `
-                 <a href="${img.url}" target="_blank" class="relative block aspect-square bg-gray-800 overflow-hidden group rounded-xl border border-gray-700 shadow-md">
-                     <img src="${img.url}" referrerpolicy="no-referrer" onerror="loadBase64Fallback(this, '${img.url}')" alt="${img.name}" title="${img.name}" class="w-full h-full object-cover group-hover:scale-110 transition duration-300">
-                 </a>`;
-             });
-             uiAttachmentsHtml += '</div></div>';
-         }
-
-         if (fileMatches.length > 0) {
-             uiAttachmentsHtml += `<div class="mt-4"><p class="text-sm font-bold text-yellow-500 mb-2">Dokumen Berpaut (Imbas QR)</p>`;
-             uiAttachmentsHtml += `<div class="flex flex-wrap gap-3">`;
-             fileMatches.forEach((file) => {
-                 let qr = new QRious({ value: file.url, size: 120 });
-                 let qrBase64 = qr.toDataURL();
-                 uiAttachmentsHtml += `
-                 <div class="flex flex-col items-center p-3 bg-gray-800 rounded-xl border border-gray-600 hover:border-yellow-500 transition w-32 flex-shrink-0 shadow-lg">
-                     <div class="bg-white p-1 rounded-lg mb-2">
-                         <img src="${qrBase64}" alt="QR Code" class="w-24 h-24">
-                     </div>
-                     <span class="text-[10px] sm:text-xs text-gray-200 w-full text-center truncate px-1 font-semibold" title="${file.name}">${file.name}</span>
-                     <a href="${file.url}" target="_blank" class="mt-2 text-[10px] bg-yellow-500 text-black px-3 py-1 rounded-full font-bold hover:bg-yellow-400 transition w-full text-center">Buka Fail</a>
-                 </div>`;
-             });
-             uiAttachmentsHtml += '</div></div>';
-         }
-
-         let uiTextHtml = `<div class="text-sm text-gray-200 mb-4 leading-relaxed bg-gray-900 p-4 rounded-xl border-l-4 border-yellow-500">${textOnly.replace(/\n/g, '<br>')}</div>`;
-
-         const card = document.createElement('div');
-         card.className = 'neu-flat p-5 border border-yellow-500/20 mb-5 relative';
-         card.innerHTML = `
-            <div class="border-b border-gray-700 pb-3 mb-4 flex justify-between items-start">
-              <div>
-                <h3 class="text-xl font-bold text-yellow-500 mb-1">Sesi Pelaporan: ${laporan.kelas}</h3>
-                <p class="text-xs text-gray-400 font-semibold">Guru: ${laporan.guru} <span class="mx-2">|</span> Masa: ${laporan.timestamp}</p>
-                <p class="text-sm text-gray-300 mt-2 font-bold">Kehadiran: <span class="text-red-400">${laporan.kehadiranSummary}</span></p>
-              </div>
-            </div>
-            ${uiTextHtml}
-            ${uiAttachmentsHtml}
-            
-            <div class="flex gap-3 mt-6 border-t border-gray-800 pt-4">
-              <button onclick="editLaporan(${index})" class="flex-1 bg-blue-600 text-white font-bold py-3 rounded-xl border border-blue-500/30 flex justify-center items-center gap-2 hover:bg-blue-500 transition text-sm shadow-lg">
-                <i data-lucide="edit" class="w-5 h-5"></i> Edit Maklumat
-              </button>
-              <button onclick="generatePDF(${index})" class="flex-1 bg-red-600 text-white font-bold py-3 rounded-xl border border-red-500/30 flex justify-center items-center gap-2 hover:bg-red-500 transition text-sm shadow-lg">
-                <i data-lucide="printer" class="w-5 h-5"></i> Cetak PDF Koperat
-              </button>
-            </div>
-         `;
-         container.appendChild(card);
-      });
-      lucide.createIcons();
-    }
-
-    async function generatePDF(index) {
-        const laporan = currentReportHistoryData[index];
-        const tarikhStr = document.getElementById('tarikh-sejarah-laporan').value;
-        const displayTarikh = formatDateMY(tarikhStr);
-
-        let textOnly = "";
-        let ulasanMatch = laporan.maklumat.match(/Ulasan: ([\s\S]*?) \n\nLampiran:/);
-        if(ulasanMatch) textOnly = ulasanMatch[1];
-        else textOnly = laporan.maklumat.replace(/\[IMAGE\|.*?\](https?:\/\/[^\s<]+)/g, '').replace(/\[FILE\|.*?\](https?:\/\/[^\s<]+)/g, '').replace(/Lampiran:\s*/g, '').replace(/^Ulasan:\s*/, '').trim();
-        if(textOnly === "Tiada") textOnly = "";
-
-        let imageMatches = [...laporan.maklumat.matchAll(/\[IMAGE\|(.*?)\](https?:\/\/[^\s<]+)/g)].map(m => {
-            let url = m[2];
-            if(url.indexOf('uc?export=view&id=') > -1) {
-                url = url.replace('uc?export=view&id=', 'thumbnail?sz=w1000&id=');
+            let mulaObj = parseDateStringDDMMYYYY(i.tarikhMula);
+            let btnBatal = "";
+            if(!isBatal && mulaObj > todayObj) {
+                btnBatal = `<button onclick="batalCutiAction('${i.uuid}', '${i.tarikhMula}')" style="margin-top:5px;background:#e74c3c;color:white;border:none;padding:5px 10px;border-radius:5px;font-size:10px;cursor:pointer;box-shadow:0 2px 4px rgba(0,0,0,0.2);">Batal Cuti</button>`;
             }
-            return {name: m[1], url: url};
+            let btnBukti = (i.buktiUrl && i.buktiUrl.length > 10) ? `<button onclick="window.open('${i.buktiUrl}', '_blank')" style="margin-top:5px; margin-left:5px; background:#3498db;color:white;border:none;padding:5px 10px;border-radius:5px;font-size:10px;cursor:pointer; display:inline-flex; align-items:center; gap:4px;box-shadow:0 2px 4px rgba(0,0,0,0.2);"><img src="https://cdn-icons-png.flaticon.com/128/7268/7268609.png" style="width:12px; height:12px;"> Muat Turun Lampiran</button>` : `<span style="font-size:10px; color:#999; margin-left:5px; margin-top:5px;">Tiada Lampiran</span>`;
+            let alasanText = i.alasan ? `<div style="color:#55719e; font-style:italic; margin-bottom:5px; font-size:11px;">Sebab: ${i.alasan}</div>` : "";
+            
+            html += `<div class="cuti-card ${classCard}">
+                <div style="width:100%;">
+                  <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                      <strong style="color:#1e3c72;">${i.jenisCuti} ${iconSah}</strong>
+                      <span style="font-size:10px; color:#55719e;">${i.tarikhMula} hingga ${i.tarikhTamat}</span>
+                  </div>
+                  <div style="color:#1e3c72; margin-bottom:5px; font-weight:600; font-size:10px;">Status: ${i.statusRekod} | ${i.statusPengesahan} ${pengesahText}</div>
+                  ${alasanText}
+                  <div style="display:flex; align-items:center; flex-wrap:wrap; gap:5px;">
+                      ${btnBatal} ${btnBukti}
+                  </div>
+                </div>
+            </div>`;
         });
-        
-        let fileMatches = [...laporan.maklumat.matchAll(/\[FILE\|(.*?)\](https?:\/\/[^\s<]+)/g)].map(m => ({name: m[1], url: m[2]}));
+        container.innerHTML = html;
+      } catch(e) {
+          container.innerHTML = "<div style='padding:10px;text-align:center;font-size:12px;color:#c0392b;'>Gagal memuatkan rekod.</div>";
+      }
+    }
 
-        setLoading(true, "Menyediakan dokumen cetakan...");
-
-        let imgHtml = '';
-        if (imageMatches.length > 0) {
-            let gridCols = imageMatches.length > 1 ? 'repeat(2, 1fr)' : '1fr';
-            if(imageMatches.length >= 4) gridCols = 'repeat(3, 1fr)';
-            imgHtml += `<div style="display: grid; grid-template-columns: ${gridCols}; gap: 15px;">`;
-            
-            for (let img of imageMatches) {
-                try {
-                    let res = await apiCall('getDriveImageBase64', { url: img.url });
-                    let finalSrc = (res && res.success) ? res.base64 : img.url;
-                    imgHtml += `<div style="aspect-ratio: 1; overflow: hidden; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); border: 1px solid #e5e7eb;">
-                                    <img src="${finalSrc}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='https://placehold.co/400x400/eeeeee/999999?text=Gagal+Dimuatkan'">
-                                </div>`;
-                } catch(e) {
-                    imgHtml += `<div style="aspect-ratio: 1; overflow: hidden; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); border: 1px solid #e5e7eb;">
-                                    <img src="${img.url}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='https://placehold.co/400x400/eeeeee/999999?text=Gagal+Dimuatkan'">
-                                </div>`;
-                }
-            }
-            imgHtml += `</div>`;
+    function batalCutiAction(uuid, tarikhMula) {
+        let todayObj = new Date();
+        todayObj.setHours(0,0,0,0);
+        let mulaObj = parseDateStringDDMMYYYY(tarikhMula);
+        if(mulaObj <= todayObj) {
+            showModernAlert("Dilarang", "Anda tidak boleh membatalkan cuti untuk tarikh hari ini atau yang lepas.", "error");
+            return;
         }
-
-        let fileHtml = '';
-        if (fileMatches.length > 0) {
-            fileHtml += `<div style="display: flex; flex-wrap: wrap; gap: 20px;">`;
-            fileMatches.forEach(file => {
-                let qr = new QRious({ value: file.url, size: 200 });
-                fileHtml += `<div style="text-align: center; border: 1px solid #e5e7eb; padding: 15px; border-radius: 12px; width: 140px; background: #ffffff; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
-                                <div style="background: #f9fafb; padding: 10px; border-radius: 8px; margin-bottom: 10px;">
-                                    <img src="${qr.toDataURL()}" style="margin: 0 auto; width: 100px; height: 100px; display: block;">
-                                </div>
-                                <p style="font-size: 11px; word-break: break-word; margin: 0; color: #374151; font-weight: 600; line-height: 1.3;">${file.name}</p>
-                             </div>`;
-            });
-            fileHtml += `</div>`;
-        }
-
-        const printArea = document.getElementById('print-area');
-        // STRUKTUR TABLE DIGUNAKAN UNTUK FORCING MARGIN KESELURUHAN & SETIAP MUKA SURAT TANPA HEADERS
-        printArea.innerHTML = `
-            <table style="width: 100%; border: none; border-collapse: collapse;">
-                <thead style="display: table-header-group;">
-                    <tr><td style="border: none; padding: 0;"><div style="height: 2.0cm;"></div></td></tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td style="border: none; padding-left: 1.0cm; padding-right: 1.0cm; padding-bottom: 0; padding-top: 0;">
-                            <div style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1f2937; padding: 0; width: 100%; margin: 0 auto; background: #ffffff;">
-                                
-                                <!-- Header Section -->
-                                <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid #FFCC00; padding-bottom: 15px; margin-bottom: 30px;">
-                                    <div>
-                                        <h1 style="font-size: 28px; font-weight: 800; color: #111827; margin: 0; text-transform: uppercase; letter-spacing: 0.5px;">Dokumentasi Sesi</h1>
-                                        <h2 style="font-size: 16px; font-weight: 600; color: #6b7280; margin: 5px 0 0 0;">YAYASAN SULTAN AZLAN SHAH</h2>
-                                    </div>
-                                    <div style="text-align: right;">
-                                        <div style="background: #111827; color: #FFCC00; padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: bold; display: inline-block; margin-bottom: 8px;">LAPORAN RASMI</div>
-                                        <p style="margin: 0; font-size: 12px; color: #6b7280; font-weight: 600;">Dicetak pada: ${new Date().toLocaleDateString('ms-MY')}</p>
-                                    </div>
-                                </div>
-
-                                <!-- Meta Information Card -->
-                                <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; margin-bottom: 30px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                                    <div>
-                                        <p style="font-size: 11px; text-transform: uppercase; color: #9ca3af; font-weight: 700; margin: 0 0 4px 0;">Tarikh Laporan</p>
-                                        <p style="font-size: 15px; color: #111827; font-weight: 600; margin: 0;">${displayTarikh} <span style="color: #6b7280; font-weight: 400; font-size: 13px;">(${laporan.timestamp})</span></p>
-                                    </div>
-                                    <div>
-                                        <p style="font-size: 11px; text-transform: uppercase; color: #9ca3af; font-weight: 700; margin: 0 0 4px 0;">Guru Bertugas</p>
-                                        <p style="font-size: 15px; color: #111827; font-weight: 600; margin: 0;">${laporan.guru}</p>
-                                    </div>
-                                    <div>
-                                        <p style="font-size: 11px; text-transform: uppercase; color: #9ca3af; font-weight: 700; margin: 0 0 4px 0;">Kelas / Sesi</p>
-                                        <p style="font-size: 15px; color: #111827; font-weight: 600; margin: 0;">${laporan.kelas}</p>
-                                    </div>
-                                    <div>
-                                        <p style="font-size: 11px; text-transform: uppercase; color: #9ca3af; font-weight: 700; margin: 0 0 4px 0;">Status Kehadiran</p>
-                                        <p style="font-size: 15px; color: #b91c1c; font-weight: 700; margin: 0;">${laporan.kehadiranSummary}</p>
-                                    </div>
-                                </div>
-
-                                <!-- Ulasan Section -->
-                                <div style="margin-bottom: 35px;">
-                                    <h3 style="font-size: 16px; font-weight: 700; color: #111827; display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
-                                        <span style="width: 24px; height: 24px; background: #FFCC00; color: #000; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 12px;">1</span> Ulasan Sesi
-                                    </h3>
-                                    <div style="background: #ffffff; border-left: 4px solid #FFCC00; padding: 16px 20px; font-size: 14px; line-height: 1.7; color: #374151; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border-radius: 0 8px 8px 0; white-space: pre-wrap;">${textOnly || 'Tiada ulasan disediakan bagi sesi ini.'}</div>
-                                </div>
-
-                                <!-- Lampiran Gambar -->
-                                ${imgHtml ? `<div style="margin-bottom: 35px;">
-                                    <h3 style="font-size: 16px; font-weight: 700; color: #111827; display: flex; align-items: center; gap: 8px; margin-bottom: 15px;">
-                                        <span style="width: 24px; height: 24px; background: #FFCC00; color: #000; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 12px;">2</span> Lampiran Visual
-                                    </h3>
-                                    ${imgHtml}
-                                </div>` : ''}
-
-                                <!-- Pautan Fail (QR) -->
-                                ${fileHtml ? `<div style="margin-bottom: 35px;">
-                                    <h3 style="font-size: 16px; font-weight: 700; color: #111827; display: flex; align-items: center; gap: 8px; margin-bottom: 15px;">
-                                        <span style="width: 24px; height: 24px; background: #FFCC00; color: #000; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 12px;">3</span> Dokumen Sokongan
-                                    </h3>
-                                    <p style="font-size: 12px; color: #6b7280; margin-top: -10px; margin-bottom: 15px;">Sila imbas Kod QR di bawah menggunakan telefon pintar untuk memuat turun atau melihat fail yang dilampirkan.</p>
-                                    ${fileHtml}
-                                </div>` : ''}
-
-                                <!-- Ruangan Tandatangan -->
-                                <div style="margin-top: 50px; padding-top: 30px; border-top: 1px dashed #d1d5db; display: flex; justify-content: space-around; page-break-inside: avoid;">
-                                    <div style="width: 200px; text-align: center;">
-                                        <p style="font-size: 12px; color: #6b7280; margin-bottom: 60px;">Disediakan oleh,</p>
-                                        <div style="border-bottom: 1px solid #111827; margin-bottom: 8px;"></div>
-                                        <p style="font-weight: 700; font-size: 14px; margin: 0; color: #111827;">${laporan.guru}</p>
-                                        <p style="font-size: 11px; color: #6b7280; margin: 2px 0 0 0;">Guru / Fasilitator Sesi</p>
-                                    </div>
-                                    <div style="width: 200px; text-align: center;">
-                                        <p style="font-size: 12px; color: #6b7280; margin-bottom: 60px;">Disemak oleh,</p>
-                                        <div style="border-bottom: 1px solid #111827; margin-bottom: 8px;"></div>
-                                        <p style="font-weight: 700; font-size: 14px; margin: 0; color: #111827;">&nbsp;</p>
-                                        <p style="font-size: 11px; color: #6b7280; margin: 2px 0 0 0;">Pengesahan Pentadbir</p>
-                                    </div>
-                                </div>
-
-                            </div>
-                        </td>
-                    </tr>
-                </tbody>
-                <tfoot style="display: table-footer-group;">
-                    <tr><td style="border: none; padding: 0;"><div style="height: 1.0cm;"></div></td></tr>
-                </tfoot>
-            </table>
-        `;
-
-        const images = printArea.querySelectorAll('img');
-        let loadedCount = 0;
-        const totalImages = images.length;
-
-        const triggerPrint = () => {
-            setLoading(false);
-            setTimeout(() => {
-                window.print();
-                printArea.innerHTML = '';
-            }, 500);
-        };
-
-        if (totalImages === 0) {
-            triggerPrint();
-        } else {
-            Array.from(images).forEach(img => {
-                if (img.complete) {
-                    loadedCount++;
-                    if (loadedCount === totalImages) triggerPrint();
+        showModernAlert("Pengesahan", "Adakah anda pasti untuk membatalkan cuti ini?", "confirm", async function() {
+            try {
+                let res = await sendData({action: "BATAL_CUTI", uuid: uuid, passcode: PASSCODE});
+                if(!res.offline && res.data && res.data.result === "success") {
+                    showModernAlert("Berjaya", "Cuti dibatalkan.", "success");
+                    loadCutiHistory();
+                    loadList(); 
                 } else {
-                    img.onload = () => {
-                        loadedCount++;
-                        if (loadedCount === totalImages) triggerPrint();
-                    };
-                    img.onerror = () => {
-                        loadedCount++;
-                        if (loadedCount === totalImages) triggerPrint();
-                    };
+                    showModernAlert("Ralat", "Gagal batal.", "error");
                 }
-            });
-        }
-    }
-
-    function testDriveAccessUI() {
-        const fileId = document.getElementById('test-file-id').value.trim();
-        if(!fileId) return customAlert("Sila masukkan File ID dari URL Google Drive");
-        setLoading(true, "Menguji Akses Google Drive...");
-        apiCall('testFileAccess', { fileId: fileId }).then(res => {
-            setLoading(false);
-            if(res.success) {
-                customAlert(`Fail Ditemui: ${res.name}\n\nAkses: ${res.access}\nKebenaran: ${res.permission}\n\nJika akses adalah ANYONE_WITH_LINK, imbasan QR akan berfungsi tanpa masalah.`);
-            } else {
-                customAlert(`Ralat: ${res.error}\n\nPastikan File ID dimasukkan adalah betul dan anda telah menjalankan fungsi \n_authorizeDriveAccess\ndi dalam editor GAS sekurang-kurangnya sekali.`);
-            }
-        }).catch(err => {
-            setLoading(false);
-            customAlert("Gagal menyambung ke pelayan: " + err);
+            } catch(e) {}
         });
     }
 
-    function setLoading(show, text = "Memuat...") {
-      const el = document.getElementById('loading-overlay');
-      document.getElementById('loading-text').innerText = text;
-      if(show) el.classList.remove('hidden');
-      else el.classList.add('hidden');
-    }
-
-    function checkNetwork() {
-      const indicator = document.getElementById('status-indicator');
-      if (navigator.onLine) {
-        indicator.innerText = '🟢 Online';
-        indicator.classList.replace('text-red-500', 'text-green-500');
-        syncOfflineData();
-      } else {
-        indicator.innerText = '🔴 Offline';
-        indicator.classList.replace('text-green-500', 'text-red-500');
-      }
-    }
-
-    window.addEventListener('online', checkNetwork);
-    window.addEventListener('offline', checkNetwork);
-
-    async function syncOfflineData() {
-      if (offlineQueue.length > 0) {
-        const queueCopy = [...offlineQueue];
-        offlineQueue = [];
-        localStorage.setItem('offlineQueue', '[]');
-        for (const item of queueCopy) {
-          try {
-            await apiCall(item.endpoint, item.payload);
-          } catch(e) {
-            offlineQueue.push(item);
-            localStorage.setItem('offlineQueue', JSON.stringify(offlineQueue));
-          }
+    function adminCutiLogin() {
+        let lockedName = localStorage.getItem('ehadir_locked_name');
+        if (!lockedName) {
+            showModernAlert("Akses Ditolak", "Sila KUNCI nama anda di menu utama terlebih dahulu untuk menjadi Admin Pengesah.", "error");
+            return;
         }
-        if(offlineQueue.length === 0) {
-           customAlert("Data luar talian berjaya disegerakkan!");
-           loadInitialData();
-        }
-      }
+
+        showModernAlert("Log Masuk Admin", "Masukkan passcode untuk pengurusan cuti:", "prompt", function(pass) {
+            if (pass !== PASSCODE) { showModernAlert("Akses Ditolak", "Passcode salah.", "error"); return; }
+            
+            sessionStorage.setItem('adminNameCuti', lockedName.toUpperCase());
+
+            document.getElementById('cutiMainPanel').style.display = 'none';
+            document.getElementById('adminCutiPanel').style.display = 'block';
+            loadAdminCutiList();
+        });
     }
 
-    function openAdmin() { document.getElementById('admin-panel').classList.remove('hidden'); }
-    function closeAdmin() { document.getElementById('admin-panel').classList.add('hidden'); }
+    function exitAdminCuti() {
+        document.getElementById('adminCutiPanel').style.display = 'none';
+        document.getElementById('cutiMainPanel').style.display = 'block';
+    }
 
-    window.onload = () => {
-      loadInitialData();
-      checkNetwork();
-    };
+    async function loadAdminCutiList() {
+        let container = document.getElementById('adminCutiList');
+        container.innerHTML = "<div style='padding:10px;text-align:center;font-size:12px;'>Memuatkan senarai...</div>";
+        try {
+            let res = await fetch(API_URL, { method: "POST", cache: "no-store", body: JSON.stringify({action: "GET_CUTI", mode: "admin", passcode: PASSCODE}) });
+            let json = await res.json();
+            let list = json.data || json;
+            if(list.length === 0) {
+                container.innerHTML = "<div style='padding:10px;text-align:center;font-size:12px;color:#7f8c8d;'>Tiada rekod cuti aktif.</div>";
+                return;
+            }
+            let html = "";
+            list.forEach(i => {
+                let isSah = i.statusPengesahan === "DISAHKAN";
+                let btnSah = !isSah ? `<button onclick="sahkanCuti('${i.uuid}')" style="margin-top:5px;background:#3498db;color:white;border:none;padding:5px 10px;border-radius:5px;font-size:10px;cursor:pointer;box-shadow:0 2px 4px rgba(0,0,0,0.2);">Sahkan Cuti</button>` : `<span style='color:#27ae60;font-size:10px;font-weight:bold;'>DISAHKAN OLEH: ${i.adminPengesah} ✔️</span>`;
+                
+                let btnBukti = (i.buktiUrl && i.buktiUrl.length > 10) ? `<button onclick="viewCutiBukti('${i.buktiUrl}')" style="margin-top:5px; margin-left:5px; background:#1e3c72;color:white;border:none;padding:5px 10px;border-radius:5px;font-size:10px;cursor:pointer; display:inline-flex; align-items:center; gap:4px;box-shadow:0 2px 4px rgba(0,0,0,0.2);"><img src="https://cdn-icons-png.flaticon.com/128/7268/7268609.png" style="width:12px; height:12px;"> Lihat Lampiran</button>` : `<span style="font-size:10px; color:#999; margin-left:5px;">Tiada Lampiran</span>`;
 
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js').catch(err => console.log('SW Reg Failed', err));
-      });
+                html += `<div class="cuti-card ${isSah ? 'cuti-sah' : ''}">
+                    <div style="width:100%;">
+                      <div style="display:flex; justify-content:space-between;"><strong style="color:#1e3c72;">${i.nama} (${i.pekerjaan})</strong></div>
+                      <div style="color:#3498db; margin:3px 0; font-weight:600; font-size:11px;">${i.jenisCuti} : ${i.tarikhMula} - ${i.tarikhTamat}</div>
+                      <div style="color:#55719e; font-style:italic; margin-bottom:5px; font-size:11px;">Sebab: ${i.alasan}</div>
+                      <div style="display:flex; align-items:center; flex-wrap:wrap; gap:5px;">
+                          ${btnSah} ${btnBukti}
+                      </div>
+                    </div>
+                </div>`;
+            });
+            container.innerHTML = html;
+        } catch(e) { container.innerHTML = "Ralat."; }
+    }
+
+    async function sahkanCuti(uuid) {
+        let adminName = sessionStorage.getItem('adminNameCuti') || "ADMIN";
+        try {
+            let res = await sendData({action: "SAH_CUTI", uuid: uuid, passcode: PASSCODE, adminName: adminName});
+            if(!res.offline && res.data && res.data.result === "success") {
+                loadAdminCutiList();
+                loadList();
+            }
+        } catch(e) {}
     }
   </script>
+
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1e3c72">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    body { font-family: 'Poppins', sans-serif; background: linear-gradient(135deg, #e0eafc 0%, #cfdef3 100%); color: #333; margin: 0; padding: 15px; display: flex; justify-content: center; min-height: 100vh; }
+    .container { background: #ffffff; padding: 0; border-radius: 30px; width: 100%; max-width: 420px; text-align: center; position: relative; box-shadow: 0 20px 40px rgba(30,60,114,0.15), inset 0 0 0 5px rgba(255,255,255,0.8), inset 0 0 20px rgba(0,0,0,0.03); overflow: hidden; padding-bottom: 30px; border: 1px solid #d1def0; }
+
+    .header-bg { background: linear-gradient(145deg, #3498db, #1e3c72); padding: 20px 20px 30px 20px; color: white; border-radius: 0 0 30px 30px; box-shadow: 0 10px 20px rgba(30,60,114,0.3), inset 0 2px 5px rgba(255,255,255,0.3), inset 0 -4px 10px rgba(0,0,0,0.3); border-bottom: 2px solid #152b53; margin-bottom: 25px; position: relative; }
+    .top-bar-row { display: flex; justify-content: center; align-items: center; gap: 10px; font-size: 11px; color: #e0eafc; font-weight: 500; letter-spacing: 0.5px; padding-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,0.15); margin-bottom: 20px; white-space: nowrap; text-transform: uppercase; text-shadow: 1px 1px 2px rgba(0,0,0,0.3); }
+
+    .main-title-block { display: flex; flex-direction: column; align-items: center; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+    .title-small { font-size: 11px; letter-spacing: 4px; text-transform: uppercase; color: #a8c0ff; margin-bottom: 5px; font-weight: 600; }
+    .title-big { font-size: 26px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; line-height: 1.1; color: #ffffff; margin: 2px 0; }
+
+    .content-padding { padding: 0 20px; }
+    select, input, textarea { width: 100%; padding: 15px; margin-bottom: 15px; background: #f5f8fa; border: 2px solid #d1def0; border-radius: 15px; font-size: 14px; box-sizing: border-box; font-family: inherit; outline: none; transition: all 0.3s; color: #1e3c72; font-weight: 600; box-shadow: inset 0 3px 6px rgba(0,0,0,0.04), 0 2px 5px rgba(255,255,255,1); }
+    select:focus, input:focus { border-color: #3498db; background: #ffffff; box-shadow: 0 0 0 4px rgba(52,152,219,0.2), inset 0 2px 4px rgba(0,0,0,0.02); }
+    textarea { resize: vertical; min-height: 80px; display: none; border: 2px solid #f39c12; background: #fffcf5; }
+
+    .input-group { position: relative; display: flex; align-items: center; width: 100%; margin-bottom: 15px; }
+    .input-group input { margin-bottom: 0; padding-right: 90px; }
+
+    .lock-btn { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); cursor: pointer; background: linear-gradient(145deg, #ffffff, #e6e9f0); border: 1px solid #d1def0; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 5; padding: 6px; border-radius: 50%; transition: 0.2s; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; }
+    .lock-btn:hover { background: #f0f4f8; transform: translateY(-50%) scale(1.05); }
+    .lock-btn:active { transform: translateY(-50%) scale(0.9); box-shadow: inset 0 2px 4px rgba(0,0,0,0.1); }
+    .lock-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .avatar-btn { right: 55px; background: transparent; box-shadow: none; border: none; }
+    .avatar-btn:hover { background: rgba(0,0,0,0.05); }
+
+    .avatar-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; max-height: 300px; overflow-y: auto; padding: 10px; }
+    .avatar-option { width: 100%; aspect-ratio: 1/1; cursor: pointer; border-radius: 50%; border: 2px solid transparent; transition: 0.2s; padding: 2px; background: #f8f9fa; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05); }
+    .avatar-option:hover { border-color: #3498db; background: #e0eafc; transform: scale(1.1); }
+    .avatar-option.selected { border-color: #1e3c72; background: #d1def0; box-shadow: 0 0 10px rgba(30,60,114, 0.3); }
+    .avatar-option img { width: 100%; height: 100%; object-fit: contain; }
+
+    .btn { width: 100%; padding: 16px; background: linear-gradient(145deg, #3498db, #1e3c72); color: white; border: none; border-radius: 16px; font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 5px; margin-bottom: 12px; box-shadow: 0 6px #152b53, 0 10px 20px rgba(30,60,114,0.3); transition: all 0.1s ease; letter-spacing: 1px; display: flex; align-items: center; justify-content: center; gap: 8px; text-transform: uppercase; position: relative; top: 0; }
+    .btn:active { top: 6px; box-shadow: 0 0px #152b53, 0 2px 5px rgba(30,60,114,0.3); margin-bottom: 6px; }
+    .btn:disabled { background: #95a5a6; box-shadow: 0 6px #7f8c8d; cursor: not-allowed; color: #ecf0f1; top: 0; margin-bottom: 12px; }
+
+    .btn-keluar { background: linear-gradient(145deg, #ff416c, #ff4b2b); box-shadow: 0 6px #a81c1c, 0 10px 20px rgba(255,75,43,0.3); }
+    .btn-keluar:active { top: 6px; box-shadow: 0 0px #a81c1c; margin-bottom: 6px; }
+
+    .btn-pelawat { background: linear-gradient(145deg, #00b4db, #0083b0); box-shadow: 0 6px #005a7a, 0 10px 20px rgba(0,131,176,0.3); }
+    .btn-pelawat:active { top: 6px; box-shadow: 0 0px #005a7a; margin-bottom: 6px; }
+
+    .btn-turquoise { background: linear-gradient(145deg, #11998e, #38ef7d); box-shadow: 0 6px #0b6e65, 0 10px 20px rgba(17,153,142,0.3); }
+    .btn-turquoise:active { top: 6px; box-shadow: 0 0px #0b6e65; margin-bottom: 6px; }
+
+    .btn-yellow { background: linear-gradient(145deg, #f2c94c, #f2994a); box-shadow: 0 6px #b8732e, 0 10px 20px rgba(242,153,74,0.3); color: #fff; }
+    .btn-yellow:active { top: 6px; box-shadow: 0 0px #b8732e; margin-bottom: 6px; }
+
+    .btn-cancel { background: linear-gradient(145deg, #95a5a6, #7f8c8d); box-shadow: 0 6px #555e5f, 0 10px 20px rgba(127,140,141,0.3); margin-top: 15px; }
+    .btn-cancel:active { top: 6px; box-shadow: 0 0px #555e5f; margin-bottom: 9px; }
+
+    #dashboardPanel, .cuti-panel-box, #pelawatPanel { display: none; background: #ffffff; padding: 25px 20px; border-radius: 20px; box-shadow: inset 3px 3px 10px rgba(30,60,114,0.05), inset -3px -3px 10px #ffffff, 0 10px 25px rgba(30,60,114,0.1); border: 2px solid #e0eafc; margin-bottom: 20px; }
+    #pelawatPanel { border-color: #38ef7d; background: #f4fff9; }
+    .cuti-panel-box { border-color: #3498db; }
+
+    .user-welcome { font-size: 18px; font-weight: 800; color: #1e3c72; margin-bottom: 5px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .locked-msg { font-size: 11px; color: #55719e; margin-bottom: 15px; font-weight: 600; }
+    
+    #dashboardSchedule { font-size:12px; color:#1e3c72; background:#e0eafc; padding:12px; border-radius:12px; margin-bottom:15px; display:none; border: 1px solid #c5d4e8; font-weight: 600; box-shadow: inset 0 2px 5px rgba(0,0,0,0.05); }
+    .userExitTime { font-weight:800; color: #3498db; }
+
+    .giant-cam-btn { width: 100%; height: 160px; background: linear-gradient(145deg, #3498db, #1e3c72); border-radius: 25px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 8px #152b53, 0 15px 30px rgba(30,60,114,0.4); cursor: pointer; transition: all 0.1s; border: 3px solid rgba(255,255,255,0.2); position: relative; overflow: hidden; top: 0; }
+    .giant-cam-btn:active { top: 8px; box-shadow: 0 0px #152b53; }
+    .giant-cam-icon { width: 75px; height: 75px; margin-bottom: 12px; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.4)); }
+    .giant-cam-text { font-size: 14px; font-weight: 800; color: white; letter-spacing: 2px; text-transform: uppercase; text-shadow: 1px 1px 3px rgba(0,0,0,0.4); }
+    .giant-pulse { animation: pulseGlow 2s infinite; }
+    @keyframes pulseGlow { 0% { box-shadow: 0 8px #152b53, 0 0 0 0 rgba(52,152,219, 0.4); } 70% { box-shadow: 0 8px #152b53, 0 0 0 15px rgba(52,152,219, 0); } 100% { box-shadow: 0 8px #152b53, 0 0 0 0 rgba(52,152,219, 0); } }
+
+    #previewImg { width: 100%; margin-top: 10px; border-radius: 15px; display: none; border: 3px solid #1e3c72; max-height: 250px; object-fit: cover; box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
+    
+    .list-header { display: flex; justify-content: space-between; align-items: center; margin-top: 30px; border-bottom: 3px solid #e0eafc; padding-bottom: 10px; margin-bottom: 15px; }
+    .list-header span { font-weight: 800; color: #1e3c72; font-size: 15px; display: flex; align-items: center; gap: 8px; text-transform: uppercase; }
+    .list-container { text-align: left; margin-top: 5px; max-height: 450px; overflow-y: auto; padding-right: 5px; }
+    
+    .user-card, .cuti-card { background: #ffffff; padding: 15px; border-radius: 16px; margin-bottom: 12px; box-shadow: 5px 5px 15px #d1def0, -5px -5px 15px #ffffff; border: 1px solid #e0eafc; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s ease; position: relative; overflow: hidden; }
+    .user-card::before, .cuti-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 6px; background: #1e3c72; border-radius: 6px 0 0 6px; }
+    .user-card:hover, .cuti-card:hover { transform: translateY(-3px); box-shadow: 8px 8px 20px #c5d4e8, -8px -8px 20px #ffffff; }
+    .user-card.offline-item::before { background: #f39c12; }
+    .cuti-sah::before { background: #27ae60; }
+    .cuti-batal::before { background: #7f8c8d; }
+
+    .user-info { flex-grow: 1; min-width: 0; padding-right: 8px; display: flex; flex-direction: column; justify-content: center; text-align: left; padding-left: 10px; }
+    .user-info strong { font-size: 14px; color: #1e3c72; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 800; }
+    .user-details { font-size: 11px; color: #55719e; margin-top: 5px; display: flex; flex-direction: column; align-items: flex-start; gap: 5px; }
+    
+    .live-timer { color: #ffffff; font-weight: 700; font-family: 'Courier New', Courier, monospace; background: linear-gradient(145deg, #1e3c72, #3498db); padding: 4px 10px; border-radius: 8px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.2); min-width: 70px; text-align: center; display: inline-flex; align-items: center; gap: 6px; font-size: 11px; margin-top: 5px; }
+
+    .list-actions { display: flex; gap: 5px; align-items: center; flex-shrink: 0; z-index: 2; }
+    .icon-btn { cursor: pointer; font-size: 14px; width: 32px; height: 32px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: linear-gradient(145deg, #ffffff, #e6e9f0); border: 1px solid #d1def0; box-shadow: 0 3px 5px rgba(0,0,0,0.1); transition: all 0.2s; }
+    .icon-btn:hover { background: #e0eafc; transform: translateY(-2px); box-shadow: 0 5px 8px rgba(0,0,0,0.15); }
+    .icon-btn:active { transform: translateY(0); box-shadow: inset 0 2px 4px rgba(0,0,0,0.1); }
+
+    #scheduleInfo { display: none; background: transparent; padding: 0; margin-bottom: 15px; text-align: center; }
+    .schedule-minimal { display: flex; justify-content: center; gap: 10px; align-items: center; }
+    
+    .time-pill { background: #ffffff; padding: 10px 20px; border-radius: 30px; font-size: 12px; font-weight: 800; display: flex; align-items: center; gap: 8px; border: 2px solid #e0eafc; box-shadow: 3px 3px 8px #d1def0, -3px -3px 8px #ffffff; color: #1e3c72; transition: transform 0.2s; }
+    .time-pill:hover { transform: translateY(-2px); box-shadow: 5px 5px 12px #d1def0, -5px -5px 12px #ffffff; }
+    
+    .pop-in { animation: popIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); }
+    @keyframes popIn { 0% { opacity: 0; transform: scale(0.8) translateY(-10px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
+
+    #imageModal { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(30,60,114,0.9); align-items: center; justify-content: center; backdrop-filter: blur(5px); }
+    .modal-content { margin: auto; display: block; max-width: 90%; max-height: 80%; border-radius: 20px; border: 4px solid #ffffff; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+    .close-modal { position: absolute; top: 20px; right: 35px; color: #ffffff; font-size: 40px; font-weight: bold; cursor: pointer; text-shadow: 0 2px 5px rgba(0,0,0,0.5); transition: 0.2s; }
+    .close-modal:hover { color: #3498db; transform: scale(1.1); }
+
+    #warningBox { display: none; position: fixed; bottom: 0; left: 0; width: 100%; background: linear-gradient(to right, #ff416c, #ff4b2b); color: white; padding: 15px; text-align: center; z-index: 9999; font-weight: 800; box-shadow: 0 -10px 25px rgba(255,65,108,0.4); animation: pulseWarn 1s infinite; border-top: 2px solid rgba(255,255,255,0.3); }
+    @keyframes pulseWarn { 0% { filter: brightness(1); } 50% { filter: brightness(1.2); } 100% { filter: brightness(1); } }
+    
+    #loadingConfig { font-size: 11px; color: #3498db; display: none; margin-bottom: 5px; font-weight: 600; }
+    #statusText { font-size: 11px; font-weight: 700; margin-bottom: 15px; color: #1e3c72; background: #e0eafc; padding: 6px 15px; border-radius: 20px; display: inline-flex; align-items: center; gap: 5px; box-shadow: inset 0 2px 5px rgba(0,0,0,0.05), 0 2px 5px rgba(255,255,255,1); border: 1px solid #c5d4e8; }
+
+    .icon-3d-mini { width: 18px; height: 18px; vertical-align: middle; margin-right: 4px; filter: drop-shadow(1px 2px 2px rgba(0,0,0,0.2)) brightness(1.05); }
+    .icon-3d-std { width: 24px; height: 24px; vertical-align: middle; margin-right: 6px; filter: drop-shadow(2px 3px 3px rgba(0,0,0,0.25)) brightness(1.05); }
+    .icon-3d-lg { width: 36px; height: 36px; vertical-align: middle; filter: drop-shadow(2px 4px 5px rgba(0,0,0,0.3)); }
+    .icon-3d-xl { width: 70px; height: 70px; margin-bottom: 12px; filter: drop-shadow(3px 6px 8px rgba(0,0,0,0.3)); }
+    
+    @keyframes spin3d { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    .spin-3d { animation: spin3d 2s linear infinite; }
+
+    #customModal, #avatarModalContainer { display: none; position: fixed; z-index: 10000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(30,60,114,0.6); backdrop-filter: blur(8px); align-items: center; justify-content: center; animation: fadeIn 0.3s; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .custom-modal-content { background: #ffffff; padding: 35px 25px; border-radius: 25px; width: 85%; max-width: 380px; text-align: center; box-shadow: 0 25px 60px rgba(30,60,114,0.4), inset 0 0 0 4px rgba(255,255,255,0.8); border: 1px solid #d1def0; transform: scale(0.9); animation: popUp 0.3s forwards; }
+    @keyframes popUp { to { transform: scale(1); } }
+    .modal-icon-top { font-size: 55px; margin-bottom: 15px; display: block; filter: drop-shadow(0 5px 10px rgba(0,0,0,0.2)); }
+    .modal-title { font-size: 20px; font-weight: 800; color: #1e3c72; margin-bottom: 12px; text-transform: uppercase; }
+    .modal-msg { font-size: 13px; color: #55719e; margin-bottom: 25px; line-height: 1.6; font-weight: 500; }
+    .modal-btn-row { display: flex; gap: 12px; justify-content: center; }
+    
+    .modal-btn { flex: 1; padding: 14px; border-radius: 14px; border: none; font-weight: 800; cursor: pointer; font-size: 13px; text-transform: uppercase; transition: all 0.1s; position: relative; top: 0; }
+    .btn-ok { background: linear-gradient(145deg, #3498db, #1e3c72); color: white; box-shadow: 0 6px #152b53; }
+    .btn-ok:active { top: 6px; box-shadow: 0 0px #152b53; }
+    .btn-cancel-modal { background: linear-gradient(145deg, #ffffff, #e6e9f0); color: #55719e; box-shadow: 0 6px #b8c1ca; border: 1px solid #d1def0; }
+    .btn-cancel-modal:active { top: 6px; box-shadow: 0 0px #b8c1ca; }
+
+    #syncStatusBar { display: none; position: fixed; top: 0; left: 0; width: 100%; padding: 12px; text-align: center; z-index: 10001; font-size: 12px; font-weight: 700; color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.3); text-transform: uppercase; }
+    
+    #autoModeIndicator { background: linear-gradient(145deg, #3498db, #1e3c72); color: white; padding: 8px; font-size: 11px; font-weight: 700; text-align: center; margin-bottom: 15px; border-radius: 10px; box-shadow: 0 4px 10px rgba(30,60,114,0.2); display: none; border: 1px solid rgba(255,255,255,0.2); }
+  </style>
+</head>
+<body oncontextmenu="return false;"> 
+
+  <div id="syncStatusBar"></div>
+  <div id="warningBox"> AMARAN! KELUAR ZON.<br>AUTO-CHECKOUT DALAM <span id="countDown">10</span>S</div>
+
+  <div id="customModal">
+    <div class="custom-modal-content">
+      <span id="modalIcon" class="modal-icon-top"></span>
+      <div id="modalTitle" class="modal-title">Tajuk</div>
+      <div id="modalMsg" class="modal-msg">Mesej di sini...</div>
+      <div class="modal-btn-row" id="modalBtnRow">
+        <button class="modal-btn btn-ok" onclick="closeCustomModal()">Faham</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="avatarModalContainer">
+    <div class="custom-modal-content">
+      <div class="modal-title">PILIH AVATAR ANDA</div>
+      <div class="modal-msg">Pilih ikon yang sesuai dengan gaya anda.</div>
+      <div id="avatarGrid" class="avatar-grid">
+      </div>
+      <div class="modal-btn-row" style="margin-top:15px;">
+        <button class="modal-btn btn-cancel-modal" onclick="closeAvatarModal()">Tutup</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="imageModal">
+    <span class="close-modal" onclick="closeModal()">&times;</span>
+    <img class="modal-content" id="imgFull">
+  </div>
+
+  <div class="container">
+    
+    <div class="header-bg">
+      <div class="top-bar-row">
+        <span>
+          <img src="https://cdn-icons-png.flaticon.com/128/3652/3652191.png" class="icon-3d-mini"> 
+          <span id="dateDisplay">--.--.----</span>
+        </span> 
+        <span style="opacity: 0.5;">|</span> 
+        <span>
+          <img src="https://cdn-icons-png.flaticon.com/128/2972/2972531.png" class="icon-3d-mini"> 
+          <span id="clockDisplay">--:--</span>
+        </span> 
+        <span style="opacity: 0.5;">|</span> 
+        <span>
+        <span class="icon-3d-mini" style="font-size: 16px; vertical-align: middle; margin-right: 1px;">🕌</span>
+        <span id="hijriDisplay" style="vertical-align: middle;">...</span>
+        </span>
+      </div>
+
+      <div class="main-title-block">
+        <div class="title-small">SISTEM PENGURUSAN</div>
+        <div class="title-big">E-HADIR</div>
+        <div class="title-big">SMK SUNGAI BAYOR</div>
+      </div>
+    </div>
+
+    <div class="content-padding">
+      <div id="autoModeIndicator">Cara Guna: PILIH JAWATAN, NAMA PENUH, PILIH ICON AVATAR, LOCK, DAFTAR MASUK / JIKA ADA MASALAH SILA PADAM HISTORY BROWSER ANDA / SILA GUNA BROWSER GOOGLE CHROME DAN ADD TO HOME SCREEN UNTUK LEBIH STABIL</div>
+      
+      <div id="statusText">
+        <img src="https://cdn-icons-png.flaticon.com/128/9357/9357448.png" class="icon-3d-mini spin-3d"> 
+        Mencari GPS...
+      </div>
+      
+      <button id="btnRetryGPS" class="btn btn-yellow" onclick="retryGPS()" style="display:none; font-size:12px; padding:12px; margin-bottom:15px; margin-top:-5px; font-weight:800;">
+        <img src="https://cdn-icons-png.flaticon.com/128/1041/1041885.png" class="icon-3d-mini"> SEMAK & AKTIFKAN GPS SEKARANG
+      </button>
+
+      <div id="dashboardPanel">
+        <span class="user-welcome">
+          <img id="userAvatarDash" src="https://cdn-icons-png.flaticon.com/128/4140/4140047.png" class="icon-3d-lg"> 
+          Hai, <span id="sessionName">--</span>
+        </span>
+        <div class="locked-msg">Sesi telah didaftarkan.</div>
+        
+        <div id="dashboardSchedule">
+          Waktu Pulang Rasmi: <span id="userExitTime" class="userExitTime">--:--</span>
+        </div>
+
+        <p id="dynamicStatus" style="margin:0 0 20px 0; font-size:12px; color:#27ae60; font-weight:800; letter-spacing:0.5px; text-transform:uppercase; text-shadow: 1px 1px 1px rgba(0,0,0,0.1);">STATUS: SEDANG BERTUGAS</p>
+        
+        <textarea id="alasanKeluar" style="display:none;" placeholder="Mohon nyatakan sebab pulang awal untuk makluman pentadbir..."></textarea>
+        
+        <button id="btnKeluar" class="btn btn-keluar" onclick="hantarKeluar(false)">
+          <img src="https://cdn-icons-png.flaticon.com/128/3580/3580154.png" class="icon-3d-std"> DAFTAR KELUAR 
+        </button>
+        
+        <div style="margin-top: 20px; border-top: 2px solid #e0eafc; padding-top: 20px; display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+          <button id="btnCutiDash" class="btn btn-turquoise" onclick="openCutiWorkflow()" style="margin-top:0; margin-bottom:0; font-size:12px;">
+            <img src="https://cdn-icons-png.flaticon.com/128/883/883356.png" class="icon-3d-std"> URUS CUTI
+          </button>
+          <button class="btn btn-pelawat" onclick="showPelawatForm()" style="margin-top:0; margin-bottom:0; font-size:12px;">
+            <img src="https://cdn-icons-png.flaticon.com/128/3135/3135768.png" class="icon-3d-std"> PELAWAT
+          </button>
+        </div>
+      </div>
+
+      <div id="defaultForm">
+        <div id="loadingConfig">
+          <img src="https://cdn-icons-png.flaticon.com/128/189/189792.png" class="icon-3d-mini spin-3d"> Sedang menyemak jadual terkini...
+        </div>
+        <div id="scheduleInfo"></div>
+        <select id="kategori" onchange="checkKategori(); updateScheduleInfo();">
+          <option value="" disabled selected>-- PILIH KATEGORI --</option>
+          <option value="GURU">GURU</option>
+          <option value="AKP">AKP</option>
+          <option value="KEBERSIHAN">KEBERSIHAN</option>
+          <option value="PELAWAT">PELAWAT (AWAM)</option>
+        </select>
+        
+        <div class="input-group">
+          <input type="text" id="nama" placeholder="NAMA PENUH (HURUF BESAR)" style="text-transform:uppercase">
+          
+          <button id="avatarBtn" class="lock-btn avatar-btn" onclick="openAvatarModal()" title="Pilih Avatar">
+            <img id="currentAvatarMini" src="https://cdn-icons-png.flaticon.com/128/4140/4140048.png" class="icon-3d-mini">
+          </button>
+
+          <button id="lockBtn" class="lock-btn" onclick="toggleLockName()" title="Kunci Nama">
+            <img src="https://cdn-icons-png.flaticon.com/128/2550/2550226.png" class="icon-3d-mini" id="lockIconImg" style="filter:opacity(0.6)">
+          </button>
+        </div>
+        
+        <textarea id="alasanMasuk" style="display:none;" placeholder="Maaf, anda lewat sedikit. Mohon nyatakan sebab:"></textarea>
+        
+        <div style="font-size:11px; color:#3498db; margin-bottom:15px; font-weight: 600;">Sila tekan butang 'KUNCI' selepas mengisi Nama & Kategori </div>
+
+        <div id="formWarningMsg" style="display:none; color:#c0392b; font-size:12px; font-weight:800; margin-bottom:15px; background:#fadbd8; padding:12px; border-radius:12px; text-align:center; border: 2px solid #e74c3c; box-shadow: 0 4px 10px rgba(231,76,60,0.2);"></div>
+
+        <button id="btnMainSubmit" class="btn" onclick="hantarMasuk(false)">
+          <img src="https://cdn-icons-png.flaticon.com/128/9402/9402342.png" class="icon-3d-std"> DAFTAR MASUK
+        </button>
+
+        <button id="btnKeluarMain" class="btn btn-keluar" onclick="hantarKeluar(false)" style="margin-top:5px; display:flex;">
+          <img src="https://cdn-icons-png.flaticon.com/128/3580/3580154.png" class="icon-3d-std"> DAFTAR KELUAR
+        </button>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top:15px;">
+          <button id="btnCutiMain" class="btn btn-turquoise" onclick="openCutiWorkflow()" style="margin-top:0; margin-bottom:0;">
+            <img src="https://cdn-icons-png.flaticon.com/128/883/883356.png" class="icon-3d-std"> MOHON CUTI
+          </button>
+          <button id="btnPelawatMain" class="btn btn-pelawat" onclick="showPelawatForm()" style="margin-top:0; margin-bottom:0;">
+            <img src="https://cdn-icons-png.flaticon.com/128/3135/3135768.png" class="icon-3d-std"> PELAWAT
+          </button>
+        </div>
+
+      </div>
+
+      <div id="cutiMainPanel" class="cuti-panel-box">
+          <h3 style="color:#3498db; margin:0 0 15px 0; display:flex; align-items:center; justify-content:center; gap:5px; font-weight:800;">
+            <img src="https://cdn-icons-png.flaticon.com/128/883/883356.png" class="icon-3d-lg"> MODUL KEBERADAAN
+          </h3>
+          <div style="text-align:right; margin-bottom:15px;">
+              <span onclick="adminCutiLogin()" style="cursor:pointer; font-size:11px; color:#1e3c72; text-decoration:underline; font-weight:700;">Akses Admin</span>
+          </div>
+          <button class="btn btn-turquoise" onclick="showBorangCuti()">
+              <img src="https://cdn-icons-png.flaticon.com/128/2921/2921222.png" class="icon-3d-std"> BORANG PERMOHONAN
+          </button>
+          
+          <div style="margin-top:20px; border-top:2px solid #e0eafc; padding-top:15px;">
+              <h4 style="margin:0 0 10px 0; font-size:14px; color:#1e3c72; text-align:left; font-weight:800;">Sejarah Keberadaan Anda</h4>
+              <div id="cutiHistoryList" style="max-height:300px; overflow-y:auto; padding-right:5px;"></div>
+          </div>
+          <button class="btn btn-cancel" onclick="exitCutiModule()">KEMBALI</button>
+      </div>
+
+      <div id="borangCutiPanel" class="cuti-panel-box">
+          <h3 style="color:#1e3c72; margin:0 0 20px 0; font-weight:800;">BORANG PERMOHONAN</h3>
+          <input type="text" id="cutiNama" placeholder="NAMA PENUH" style="text-transform:uppercase">
+          <select id="cutiKategori">
+              <option value="" disabled selected>-- PEKERJAAN --</option>
+              <option value="GURU">GURU</option>
+              <option value="AKP">AKP</option>
+              <option value="KEBERSIHAN">KEBERSIHAN</option>
+          </select>
+          <div style="display:flex; gap:15px;">
+              <div style="flex:1; text-align:left;">
+                  <label style="font-size:11px; color:#55719e; font-weight:700;">Tarikh Mula</label>
+                  <input type="date" id="cutiMula">
+              </div>
+              <div style="flex:1; text-align:left;">
+                  <label style="font-size:11px; color:#55719e; font-weight:700;">Tarikh Tamat</label>
+                  <input type="date" id="cutiTamat">
+              </div>
+          </div>
+          <input type="text" id="cutiJenis" placeholder="JENIS CUTI (CRK/Cuti Sakit/Kursus/Mesyuarat)" style="text-transform:uppercase">
+          <textarea id="cutiAlasan" style="display:block; min-height:80px; border-color:#3498db; margin-bottom:15px;" placeholder="Alasan / Catatan"></textarea>
+          
+          <div style="margin-bottom:20px; text-align:left; background:#f4f8fb; padding:15px; border-radius:15px; border:1px dashed #3498db;">
+            <label style="font-size:11px; color:#1e3c72; font-weight:800;">Muat Naik Bukti (Cth: Sijil Sakit) - Pilihan</label>
+            <input type="file" id="cutiBuktiInput" style="display:block; padding:10px; font-size:11px; width:100%; box-sizing:border-box; margin-top:8px; border-radius:10px; background:white; border:1px solid #d1def0;" onchange="processCutiBukti(this)">
+            <input type="hidden" id="cutiBuktiBase64">
+            <img id="cutiBuktiPreview" style="display:none; width:100%; max-height:200px; object-fit:contain; border:2px solid #e0eafc; border-radius:10px; margin-top:10px; background:#ffffff; box-shadow:0 4px 10px rgba(0,0,0,0.1);">
+          </div>
+          
+          <button id="btnSubmitCuti" class="btn btn-turquoise" onclick="submitCutiForm()">HANTAR PERMOHONAN</button>
+          <button class="btn btn-cancel" onclick="cancelBorangCuti()">BATAL</button>
+      </div>
+
+      <div id="adminCutiPanel" class="cuti-panel-box">
+          <h3 style="color:#1e3c72; margin:0 0 15px 0; font-weight:800;">PENGURUSAN CUTI (ADMIN)</h3>
+          <div id="adminCutiList" style="max-height:350px; overflow-y:auto; text-align:left; border:2px solid #e0eafc; padding:10px; border-radius:15px; background:#f8fbff;"></div>
+          <button class="btn btn-cancel" onclick="exitAdminCuti()">TUTUP MOD ADMIN</button>
+      </div>
+
+      <div id="pelawatPanel">
+        <h3 style="color:#27ae60; margin:0 0 5px 0; display:flex; align-items:center; justify-content:center; gap:5px; font-weight:800;">
+          <img src="https://cdn-icons-png.flaticon.com/128/3687/3687416.png" class="icon-3d-lg"> MOD PELAWAT
+        </h3>
+        <p style="font-size:12px; color:#55719e; margin-bottom:20px; font-weight:600;">Sila ambil gambar & isi nama pelawat.</p>
+        
+        <div style="margin: 20px 0;">
+          <label class="giant-cam-btn giant-pulse" id="camBox">
+            <div id="camContent" style="display:flex; flex-direction:column; align-items:center;">
+               <img src="https://cdn-icons-png.flaticon.com/128/3687/3687416.png" class="giant-cam-icon">
+               <span class="giant-cam-text">SNAP FOTO</span>
+            </div>
+            <img id="previewImg" style="display:none; position:absolute; width:100%; height:100%; object-fit:cover; top:0; left:0;">
+            <input type="file" accept="image/*" capture="environment" style="display:none" onchange="processImage(this)">
+          </label>
+        </div>
+
+        <input type="text" id="namaPelawatInput" placeholder="NAMA PENUH PELAWAT" style="text-transform:uppercase; margin-top:15px;">
+
+        <input type="hidden" id="base64Foto">
+        <button id="btnPelawatSubmit" class="btn btn-pelawat" onclick="hantarPelawat()">
+          <img src="https://cdn-icons-png.flaticon.com/128/9402/9402342.png" class="icon-3d-std"> HANTAR DATA
+        </button>
+        <button class="btn btn-cancel" onclick="cancelPelawat()">BATAL</button>
+      </div>
+
+    </div>
+
+      <div class="list-header">
+        <span>
+          <img src="https://cdn-icons-png.flaticon.com/128/942/942799.png" class="icon-3d-std"> 
+          <span id="recordTitleText">Rekod Hari Ini</span> (<span id="count">0</span>)
+        </span>
+        <div style="display:flex; gap:12px; align-items:center;">
+          <div style="position:relative; display:inline-block; width:32px; height:32px;" onclick="var d=document.getElementById('historyDate'); if(d.showPicker) d.showPicker(); else d.click();">
+            <input type="date" id="historyDate" onchange="loadList()" onclick="if(this.showPicker)this.showPicker();" style="position:absolute; z-index:10; opacity:0; width:100%; height:100%; top:0; left:0; cursor:pointer; background:transparent;" title="Pilih Tarikh Sejarah">
+            <img src="https://cdn-icons-png.flaticon.com/128/3652/3652191.png" class="icon-3d-std" style="width:28px; height:28px; margin:0; position:absolute; top:2px; left:2px; pointer-events:none; filter: drop-shadow(0 2px 3px rgba(0,0,0,0.2));">
+          </div>
+          <button onclick="document.getElementById('historyDate').value=''; loadList();" style="border:none; background:none; cursor:pointer; padding:0; width:32px; height:32px; display:flex; align-items:center; justify-content:center; transition: transform 0.2s;">
+            <img src="https://cdn-icons-png.flaticon.com/128/3031/3031718.png" class="icon-3d-std" style="width:28px; height:28px; margin:0; filter: drop-shadow(0 2px 3px rgba(0,0,0,0.2));" title="Reset ke Hari Ini">
+          </button>
+        </div>
+      </div>
+      <div id="listContainer" class="list-container">
+        <div style="padding:30px; color:#55719e; font-size:13px; font-weight:600;">Memuatkan data...</div>
+      </div>
+      
+    </div>
+  </div>
+
+<script>
+  // PENTING: Padam cache usang sewaktu permulaan sistem online untuk elak tersekat di versi lama
+  window.addEventListener('load', () => {
+    if (navigator.onLine && 'caches' in window) {
+      caches.keys().then(names => {
+        for (let name of names) {
+          if (name !== 'ehadir-hybrid-v53-repaired') {
+            caches.delete(name);
+          }
+        }
+      });
+    }
+  });
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(reg => {
+        console.log('SW Berjaya:', reg.scope);
+        reg.update(); // Sentiasa periksa update sewaktu load
+        
+        // Semak fail sw.js dari server setiap kali aplikasi ditinggalkan terbuka lama (setiap jam)
+        setInterval(() => {
+            reg.update();
+        }, 60 * 60 * 1000);
+
+        if ('SyncManager' in window) {
+          reg.sync.register('sync-attendance').catch(err => console.log("Sync bg gagal", err));
+        }
+      }).catch(err => console.log('SW Gagal:', err));
+    });
+
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!refreshing) {
+        refreshing = true;
+        // Paksa sistem padam seluruh cache memori UI browser supaya kod baru mengambil tempat sepenuhnya
+        if ('caches' in window) {
+            caches.keys().then(names => {
+                return Promise.all(names.map(name => caches.delete(name)));
+            }).then(() => {
+                window.location.reload(true);
+            });
+        } else {
+            window.location.reload(true);
+        }
+      }
+    });
+    
+    navigator.serviceWorker.addEventListener('message', event => {
+      if (event.data && event.data.type === 'SYNC_OFFLINE_DATA') {
+        syncOfflineData();
+      }
+    });
+  }
+
+  window.addEventListener('online', () => {
+    console.log("Internet dikesan! Memulakan sinkronisasi...");
+    showSyncBar("Internet Kembali Pulih. Menyegerakkan data...", "#3498db");
+    if ('serviceWorker' in navigator && 'SyncManager' in window) {
+      navigator.serviceWorker.ready.then(sw => { return sw.sync.register('sync-attendance'); });
+    } else {
+      fetch('/sw.js'); 
+    }
+    if(typeof syncOfflineData === 'function') syncOfflineData();
+  });
+
+  window.addEventListener('offline', () => {
+    showSyncBar("MOD OFFLINE: Data akan disimpan dalam telefon.", "#e74c3c");
+  });
+
+  function showSyncBar(msg, color) {
+    const bar = document.getElementById('syncStatusBar');
+    if(bar) {
+      bar.innerText = msg;
+      bar.style.background = color;
+      bar.style.display = 'block';
+      if(color === "#3498db" || color === "#2ecc71") setTimeout(() => { bar.style.display = 'none'; }, 4000);
+    }
+  }
+
+  function syncOfflineData() {
+    if (!navigator.onLine) return;
+    let offlineQueue = JSON.parse(localStorage.getItem('ehadir_offline_queue') || "[]");
+    if (offlineQueue.length === 0) {
+      localStorage.removeItem('ehadir_offline_queue'); 
+      return; 
+    }
+
+    showSyncBar("Menghantar " + offlineQueue.length + " data tertangguh...", "#f39c12");
+    let itemToSync = offlineQueue[0];
+    if (!itemToSync.kategori || itemToSync.kategori === "undefined" || itemToSync.kategori === null) {
+      itemToSync.kategori = "PELAWAT";
+    }
+
+    fetch(API_URL, { method: "POST", body: JSON.stringify(itemToSync) })
+    .then(response => response.json())
+    .then(res => {
+      offlineQueue.shift(); 
+      if (offlineQueue.length > 0) { 
+        localStorage.setItem('ehadir_offline_queue', JSON.stringify(offlineQueue));
+        syncOfflineData(); 
+      } else { 
+        localStorage.removeItem('ehadir_offline_queue'); 
+        showSyncBar("👍 Semua data offline telah berjaya dihantar!", "#27ae60"); 
+        loadList(); 
+        setTimeout(() => {
+          fetch(API_URL, { method: "POST", cache: "no-store", body: JSON.stringify({action: "GET_LIST", passcode: PASSCODE}) })
+          .then(r => r.json()).then(resData => { 
+            checkAutoStatus(resData.data || resData); 
+          });
+        }, 1500);
+      }
+    })
+    .catch(err => { showSyncBar("Ralat Network. Akan cuba sebentar lagi.", "#e67e22"); });
+  }
+
+  function showModernAlert(title, msg, type, callback) {
+    let modal = document.getElementById('customModal');
+    let mTitle = document.getElementById('modalTitle');
+    let mMsg = document.getElementById('modalMsg');
+    let mIcon = document.getElementById('modalIcon');
+    let mBtns = document.getElementById('modalBtnRow');
+
+    mTitle.innerText = title;
+    mMsg.innerHTML = msg; 
+    
+    if(type === 'error') {
+      mIcon.innerText = "❌"; mTitle.style.color = "#c0392b";
+      mBtns.innerHTML = `<button class="modal-btn btn-ok" onclick="closeCustomModal()">Faham</button>`;
+    } else if(type === 'success') {
+      mIcon.innerText = "👍"; mTitle.style.color = "#27ae60";
+      mBtns.innerHTML = `<button class="modal-btn btn-ok" onclick="closeCustomModal()">Terbaik</button>`;
+    } else if(type === 'info') {
+      mIcon.innerText = "ℹ️"; mTitle.style.color = "#3498db";
+      mBtns.innerHTML = `<button class="modal-btn btn-ok" onclick="closeCustomModal()">OK</button>`;
+    } else if(type === 'confirm') {
+      mIcon.innerText = "🤔"; mTitle.style.color = "#1e3c72";
+      window.tempCallback = callback;
+      mBtns.innerHTML = `<button class="modal-btn btn-cancel-modal" onclick="closeCustomModal()">Batal</button><button class="modal-btn btn-ok" onclick="confirmAction()">Teruskan</button>`;
+    } else if(type === 'prompt') {
+      mIcon.innerText = "🔐"; mTitle.style.color = "#1e3c72";
+      window.tempCallback = callback;
+      mMsg.innerHTML = msg + `<br><br><input type="password" id="customPromptInput" style="width:100%; padding:15px; border-radius:15px; border:2px solid #d1def0; font-family:inherit; text-align:center; box-shadow:inset 0 3px 6px rgba(0,0,0,0.05);" placeholder="Masukkan Passcode">`;
+      mBtns.innerHTML = `<button class="modal-btn btn-cancel-modal" onclick="closeCustomModal()">Batal</button><button class="modal-btn btn-ok" onclick="submitPrompt()">Sahkan</button>`;
+    } else if(type === 'gps') {
+      mIcon.innerText = "📍"; mTitle.style.color = "#c0392b";
+      window.tempCallback = callback;
+      mBtns.innerHTML = `<button class="modal-btn btn-ok" onclick="confirmAction()" style="background:linear-gradient(145deg, #f2c94c, #f2994a); color:white; font-size:14px; box-shadow:0 6px #b8732e;">↻ SEMAK GPS SEKARANG</button>`;
+    } else {
+      mIcon.innerText = "💡"; mTitle.style.color = "#1e3c72";
+      mBtns.innerHTML = `<button class="modal-btn btn-ok" onclick="closeCustomModal()">Tutup</button>`;
+    }
+    modal.style.display = "flex";
+
+    if(type === 'prompt') {
+      setTimeout(() => {
+        let pInput = document.getElementById('customPromptInput');
+        if(pInput) pInput.focus();
+      }, 100);
+    }
+  }
+
+  function closeCustomModal() { document.getElementById('customModal').style.display = "none"; }
+  function confirmAction() { closeCustomModal(); if(window.tempCallback) window.tempCallback(); }
+
+  function submitPrompt() {
+    let val = document.getElementById('customPromptInput').value;
+    closeCustomModal();
+    if(window.tempCallback) window.tempCallback(val);
+  }
+
+  function sendNotification(title, body, tag) {
+    if(Notification.permission === "granted") {
+      if('serviceWorker' in navigator) {
+        navigator.serviceWorker.ready.then(reg => {
+          reg.showNotification(title, {
+            body: body,
+            icon: "https://cdn-icons-png.flaticon.com/128/9402/9402342.png",
+            tag: tag,
+            renotify: true,
+            vibrate: [200, 100, 200],
+            data: { url: location.href } 
+          });
+        });
+      } else {
+        new Notification(title, { body: body, tag: tag });
+      }
+    }
+  }
+
+  window.onload = function() {
+    startClock();
+    startRadar();
+    fetchConfig(); 
+    getHijriDate();
+    initLockName(); 
+    initAvatar(); 
+    initBackgroundService();
+    
+    document.getElementById('nama').addEventListener('input', validateFormState);
+
+    if(!navigator.onLine) showSyncBar("MOD OFFLINE: Data akan disimpan dalam telefon.", "#e74c3c");
+    else syncOfflineData(); 
+
+    setTimeout(() => {
+      checkSession();
+      setInterval(updateDashboardInfo, 5000); 
+    }, 2000);
+
+    loadList();
+    setInterval(updateLiveTimers, 1000);
+    
+    const workerBlob = new Blob(["self.onmessage = function() { setInterval(function(){ self.postMessage('tick'); }, 1000); }"], { type: "text/javascript" });
+    const worker = new Worker(URL.createObjectURL(workerBlob));
+    worker.onmessage = function(e) { monitorAutoLogic(); };
+    worker.postMessage("start");
+  };
+
+  const AVATARS = [
+    "https://cdn-icons-png.flaticon.com/128/4140/4140048.png", 
+    "https://cdn-icons-png.flaticon.com/128/4140/4140047.png", 
+    "https://cdn-icons-png.flaticon.com/128/4140/4140037.png", 
+    "https://cdn-icons-png.flaticon.com/128/4140/4140051.png", 
+    "https://cdn-icons-png.flaticon.com/128/4140/4140040.png", 
+    "https://cdn-icons-png.flaticon.com/128/4140/4140061.png", 
+    "https://cdn-icons-png.flaticon.com/128/4140/4140052.png", 
+    "https://cdn-icons-png.flaticon.com/128/4140/4140042.png", 
+    "https://cdn-icons-png.flaticon.com/128/4140/4140046.png", 
+    "https://cdn-icons-png.flaticon.com/128/4140/4140057.png"  
+  ];
+
+  function initAvatar() {
+    let saved = localStorage.getItem('ehadir_user_avatar');
+    if(saved) document.getElementById('currentAvatarMini').src = saved;
+    let grid = document.getElementById('avatarGrid');
+    grid.innerHTML = "";
+    AVATARS.forEach(url => {
+      let div = document.createElement('div');
+      div.className = "avatar-option";
+      if(url === saved) div.classList.add('selected');
+      div.innerHTML = `<img src="${url}">`;
+      div.onclick = () => selectAvatar(url);
+      grid.appendChild(div);
+    });
+  }
+
+  function openAvatarModal() { document.getElementById('avatarModalContainer').style.display = 'flex'; }
+  function closeAvatarModal() { document.getElementById('avatarModalContainer').style.display = 'none'; }
+
+  function selectAvatar(url) {
+    localStorage.setItem('ehadir_user_avatar', url);
+    document.getElementById('currentAvatarMini').src = url;
+    initAvatar(); 
+    closeAvatarModal();
+  }
+
+  function initLockName() {
+    let locked = localStorage.getItem('ehadir_locked_name');
+    let lockedKat = localStorage.getItem('ehadir_locked_kat'); 
+    let input = document.getElementById('nama');
+    let sel = document.getElementById('kategori');
+    let btnImg = document.getElementById('lockIconImg');
+    let btnLock = document.getElementById('lockBtn');
+    let avatarBtn = document.getElementById('avatarBtn'); 
+    
+    if (!locked || !lockedKat) {
+      if(locked || lockedKat) {
+        localStorage.removeItem('ehadir_locked_name');
+        localStorage.removeItem('ehadir_locked_kat');
+      }
+      locked = null; 
+      lockedKat = null;
+    }
+
+    if (locked && lockedKat) {
+      input.value = locked;
+      sel.value = lockedKat;
+      input.readOnly = true;
+      sel.disabled = true; 
+      avatarBtn.disabled = true; 
+      input.style.background = "#e0eafc"; 
+      sel.style.background = "#e0eafc";
+      input.style.borderColor = "#1e3c72";
+      sel.style.borderColor = "#1e3c72";
+      
+      btnImg.src = "https://cdn-icons-png.flaticon.com/128/3064/3064155.png"; 
+      btnImg.style.filter = "opacity(1)";
+      btnLock.style.background = "linear-gradient(145deg, #f2c94c, #f2994a)";
+    } else {
+      input.readOnly = false;
+      sel.disabled = false;
+      avatarBtn.disabled = false; 
+      input.style.background = "#f5f8fa"; 
+      sel.style.background = "#f5f8fa";
+      input.style.borderColor = "#d1def0";
+      sel.style.borderColor = "#d1def0";
+      
+      btnImg.src = "https://cdn-icons-png.flaticon.com/128/3064/3064197.png"; 
+      btnImg.style.filter = "opacity(0.6)";
+      btnLock.style.background = "linear-gradient(145deg, #ffffff, #e6e9f0)";
+    }
+    
+    validateFormState();
+  }
+
+  function toggleLockName() {
+    let input = document.getElementById('nama');
+    let sel = document.getElementById('kategori');
+    let avatarBtn = document.getElementById('avatarBtn');
+    let current = input.value.trim().toUpperCase();
+    let currentKat = sel.value;
+    let currentAvatar = localStorage.getItem('ehadir_user_avatar');
+    
+    if (input.readOnly) {
+      input.readOnly = false;
+      sel.disabled = false;
+      avatarBtn.disabled = false;
+      input.style.background = "#f5f8fa";
+      sel.style.background = "#f5f8fa";
+      input.style.borderColor = "#d1def0";
+      sel.style.borderColor = "#d1def0";
+      localStorage.removeItem('ehadir_locked_name');
+      localStorage.removeItem('ehadir_locked_kat');
+      showModernAlert("Nyah-Kunci", "Auto Check-In Dibatalkan.", "info");
+      initLockName();
+      return;
+    }
+
+    if(!current) { showModernAlert("Tiada Nama", "Sila isi Nama anda dahulu.", "error"); return; }
+    if(!currentKat) { showModernAlert("Tiada Kategori", "Sila pilih Kategori dahulu.", "error"); return; }
+    if(!currentAvatar) { showModernAlert("Tiada Avatar", "Sila pilih Avatar anda dahulu.", "error"); return; }
+
+    input.readOnly = true;
+    sel.disabled = true;
+    avatarBtn.disabled = true;
+    input.style.background = "#e0eafc";
+    sel.style.background = "#e0eafc";
+    input.style.borderColor = "#1e3c72";
+    sel.style.borderColor = "#1e3c72";
+    localStorage.setItem('ehadir_locked_name', current);
+    localStorage.setItem('ehadir_locked_kat', currentKat);
+    
+    showModernAlert("Berjaya Kunci", "Nama, Kategori & Avatar dikunci. <br>Sistem Auto Check-In sedia.", "success");
+    initLockName();
+  }
+
+  function cleanTimeDisplay(val) {
+    if (!val) return "--:--";
+    let d = parseTime(val, new Date());
+    return d ? d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : val;
+  }
+
+  function updateScheduleInfo() {
+    let kat = document.getElementById('kategori');
+    let infoBox = document.getElementById('scheduleInfo');
+    if (!jamConfig) return;
+    if (kat && jamConfig[kat.value]) {
+      let masuk = cleanTimeDisplay(jamConfig[kat.value].masuk);
+      let keluar = cleanTimeDisplay(jamConfig[kat.value].keluar);
+      infoBox.innerHTML = `<div class="schedule-minimal"><div class="time-pill" style="color:#27ae60; border-color:#d4edda; box-shadow:0 4px 10px rgba(39,174,96,0.15);"><span><img src="https://cdn-icons-png.flaticon.com/128/3233/3233497.png" class="icon-3d-mini"> ${masuk}</span></div><div class="time-pill" style="color:#c0392b; border-color:#fadbd8; box-shadow:0 4px 10px rgba(192,57,43,0.15);"><span><img src="https://cdn-icons-png.flaticon.com/128/3233/3233513.png" class="icon-3d-mini"> ${keluar}</span></div></div>`;
+      infoBox.style.display = "block";
+      
+      infoBox.classList.remove('pop-in');
+      void infoBox.offsetWidth; 
+      infoBox.classList.add('pop-in');
+    }
+  }
+
+  function updateDashboardInfo() {
+    let s = JSON.parse(localStorage.getItem('ehadir_session'));
+    let dashboardSchedule = document.getElementById('dashboardSchedule');
+    let userExitTime = document.getElementById('userExitTime');
+    if (s && jamConfig && jamConfig[s.kategori]) {
+      let displayKeluar = cleanTimeDisplay(jamConfig[s.kategori].keluar);
+      dashboardSchedule.style.display = "block";
+      userExitTime.innerText = displayKeluar;
+    }
+  }
+
+  function parseTime(t, r) {
+    if (!t || t.toString().toUpperCase() === "BEBAS") return null;
+    let d = new Date(r); let tStr = t.toString().trim();
+    let p = tStr.match(/(\d+)[:.](\d+)(?:[:.](\d+))?\s*(AM|PM)/i);
+    if(p) {
+      let h = parseInt(p[1]), m = parseInt(p[2]), ampm = p[4].toUpperCase();
+      if(ampm === "PM" && h < 12) h += 12; if(ampm === "AM" && h === 12) h = 0;
+      d.setHours(h, m, 0, 0); return d;
+    } 
+    let p2 = tStr.match(/(\d+)[:.](\d+)/);
+    if(p2) { d.setHours(parseInt(p2[1]), parseInt(p2[2]), 0, 0); return d; }
+    return null; 
+  }
+
+  function parseTimeLocal(timeStr) {
+    if (!timeStr) return null;
+    if (timeStr.toString().length > 15) { let tempD = new Date(timeStr); if(!isNaN(tempD.getTime())) { let now = new Date(); now.setHours(tempD.getHours(), tempD.getMinutes(), tempD.getSeconds(), 0); return now; } }
+    let parts = timeStr.match(/(\d+):(\d+)(?::(\d+))?\s*(AM|PM|am|pm)?/i);
+    if (!parts) return null;
+    let h = parseInt(parts[1]), m = parseInt(parts[2]), s = parts[3] ? parseInt(parts[3]) : 0, ampm = parts[4] ? parts[4].toUpperCase() : null;
+    if (ampm === "PM" && h < 12) h += 12; if (ampm === "AM" && h === 12) h = 0;
+    let d = new Date(); d.setHours(h, m, s, 0); return d;
+  }
+
+  function updateLiveTimers() {
+    let now = new Date();
+    document.querySelectorAll('.live-timer[data-masuk]').forEach(el => {
+      let masukStr = el.getAttribute('data-masuk');
+      if (!masukStr || masukStr === "undefined") { 
+        el.innerHTML = `Sedang Bertugas: --`; 
+        return; 
+      }
+      let masukDate = parseTimeLocal(masukStr);
+      if (masukDate) {
+        let diff = Math.floor((now - masukDate) / 1000); if (diff < 0) diff = 0;
+        let h = Math.floor(diff / 3600); let m = Math.floor((diff % 3600) / 60);
+        el.innerHTML = `Sedang Bertugas: ${h}J ${m}M`;
+      } else { 
+        el.innerHTML = `Sedang Bertugas: 0J 0M`; 
+      }
+    });
+  }
+
+  function startClock(){
+    setInterval(()=>{
+      let n = new Date();
+      document.getElementById('clockDisplay').innerText = n.toLocaleTimeString('en-US', { hour12: true, hour: "2-digit", minute: "2-digit", timeZone: 'Asia/Kuala_Lumpur' });
+      
+      let dd = String(n.getDate()).padStart(2, '0');
+      let mm = String(n.getMonth() + 1).padStart(2, '0');
+      let yyyy = n.getFullYear();
+      document.getElementById('dateDisplay').innerText = `${dd}.${mm}.${yyyy}`;
+    }, 1000);
+  }
+  
+  function getHijriDate(){
+    const monthNames = ["Muharram", "Safar", "Rabiulawal", "Rabiulakhir", "Jamadilawal", "Jamadilakhir", "Rejab", "Syaaban", "Ramadan", "Syawal", "Zulkaedah", "Zulhijjah"];
+    let t = new Date();
+    t.setDate(t.getDate() - 1);
+    try {
+      let parts = new Intl.DateTimeFormat('en-u-ca-islamic-umalqura-nu-latn', { day: 'numeric', month: 'numeric', year: 'numeric', timeZone: 'Asia/Kuala_Lumpur' }).formatToParts(t);
+      let hDay = parts.find(p => p.type === 'day').value;
+      let hMonthIndex = parseInt(parts.find(p => p.type === 'month').value) - 1; 
+      let hYear = parts.find(p => p.type === 'year').value.split(" ")[0];
+      document.getElementById('hijriDisplay').innerText = `${hDay} ${monthNames[hMonthIndex]||("")} ${hYear}`;
+    } catch(e) { document.getElementById('hijriDisplay').innerText = "Kalendar Islam"; }
+  }
+
+  function checkSession() { 
+    let s = JSON.parse(localStorage.getItem('ehadir_session')); 
+    if(s && s.date === getTodayStr()) { 
+      document.getElementById('defaultForm').style.display = 'none'; 
+      document.getElementById('dashboardPanel').style.display = 'block'; 
+      document.getElementById('sessionName').innerText = s.nama; 
+      document.getElementById('dynamicStatus').innerText = "STATUS: " + s.kategori + " (SEDANG BERTUGAS)";
+      let savedAvatar = s.avatar || localStorage.getItem('ehadir_user_avatar');
+      if(savedAvatar) document.getElementById('userAvatarDash').src = savedAvatar;
+      updateDashboardInfo(); 
+    } else {
+      document.getElementById('dashboardPanel').style.display = 'none'; 
+      document.getElementById('defaultForm').style.display = 'block'; 
+    }
+  }
+
+  function formatAppTime(val) {
+    if (!val || val === "" || val === "undefined") return "--:--";
+    if (typeof val === 'string' && val.includes('T') && val.length > 15) {
+      let d = new Date(val);
+      if (!isNaN(d.getTime())) return d.toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit', hour12:true});
+    }
+    return val;
+  }
+  
+  function loadList() { 
+    let dateInput = document.getElementById('historyDate');
+    let dateVal = dateInput ? dateInput.value : ""; // Formats automatically as YYYY-MM-DD
+    let targetDate = "";
+    let isHistory = false;
+
+    if (dateVal) {
+      let p = dateVal.split('-');
+      targetDate = p[2] + "." + p[1] + "." + p[0]; // Convert YYYY-MM-DD to DD.MM.YYYY
+      if (targetDate !== getTodayStr()) {
+        isHistory = true;
+      }
+    }
+
+    let titleText = document.getElementById('recordTitleText');
+    if (titleText) {
+      if (isHistory) {
+        titleText.innerText = "Rekod (" + targetDate + ")";
+      } else {
+        titleText.innerText = "Rekod Hari Ini";
+      }
+    }
+
+    let offlineQueue = JSON.parse(localStorage.getItem('ehadir_offline_queue') || "[]");
+    let offlineItems = isHistory ? [] : offlineQueue.filter(q => q.action === "MASUK").map(q => ({
+      nama: q.nama, kategori: q.kategori, jam: new Date(q.clientTime).toLocaleTimeString('en-US', {hour12:true, hour:'2-digit', minute:'2-digit', second:'2-digit'}), avatar: q.avatar, isOffline: true
+    }));
+    if(!navigator.onLine) { renderList(offlineItems); return; }
+    
+    let payload = {action: "GET_LIST", passcode: PASSCODE};
+    if (targetDate) payload.targetDate = targetDate;
+
+    fetch(API_URL, { method: "POST", cache: "no-store", body: JSON.stringify(payload) })
+    .then(r => r.json()).then(res => { 
+      let serverItems = res.data || res; 
+      currentList = [...offlineItems, ...serverItems];
+      renderList(currentList);
+      if (!isHistory) {
+        checkAutoStatus(currentList);
+        validateFormState;
+      }
+    }).catch(() => { renderList(offlineItems); });
+  }
+
+  function renderList(items) {
+    let dateInput = document.getElementById('historyDate');
+    let dateVal = dateInput ? dateInput.value : "";
+    let isHistory = false;
+    if (dateVal) {
+       let p = dateVal.split('-');
+       if(p[2] + "." + p[1] + "." + p[0] !== getTodayStr()) isHistory = true;
+    }
+
+    document.getElementById('count').innerText = items.length; 
+    let h = ""; 
+    
+    const catColors = {
+      "GURU": "#3498db",      
+      "AKP": "#d35400",       
+      "KEBERSIHAN": "#27ae60", 
+      "PELAWAT": "#8e44ad",
+      "CUTI": "#e74c3c"
+    };
+
+    let hadirAktif = [];
+    let daftarKeluar = [];
+    let tidakHadir = [];
+
+    items.forEach((i, globalIdx) => {
+      i._globalIdx = globalIdx; 
+      if (i.kategori === "CUTI") {
+         tidakHadir.push(i);
+      } else if (!i.keluar || i.keluar === "" || i.keluar === "undefined") {
+         hadirAktif.push(i);
+      } else {
+         daftarKeluar.push(i);
+      }
+    });
+
+    const generateCards = (list) => {
+       let html = "";
+       list.forEach(i => {
+          let idx = i._globalIdx;
+          let imgBtn = (i.kategori === "PELAWAT" && i.foto) ? `<span class="icon-btn" onclick="viewImage(${idx})"><img src="https://cdn-icons-png.flaticon.com/128/3342/3342137.png" class="icon-3d-mini" style="margin:0;"></span>` : "";
+          let xBtn = (isHistory || i.kategori === "CUTI" || i.keluar) ? "" : `<span class="icon-btn" style="border-color:#fadbd8; background:linear-gradient(145deg, #ffe0e0, #ffb3b3);" onclick="keluarManual('${i.nama}')"><img src="https://cdn-icons-png.flaticon.com/128/6861/6861362.png" class="icon-3d-mini" style="margin:0;"></span>`;
+          let offlineClass = i.isOffline ? "offline-item" : "";
+          let offlineIcon = i.isOffline ? `<img src="https://cdn-icons-png.flaticon.com/128/159/159604.png" class="icon-3d-mini" title="Menunggu Sync"> ` : "";
+          
+          let nameColor = catColors[i.kategori] || "#1e3c72";
+
+          let displayMasuk = formatAppTime(i.jam);
+          let displayKeluar = formatAppTime(i.keluar);
+
+          let durationHTML = "";
+          if (i.kategori !== "CUTI") {
+              if (i.jam && i.keluar && i.keluar !== "" && i.keluar !== "undefined") {
+                let dMasuk = parseTimeLocal(i.jam);
+                let dKeluar = parseTimeLocal(i.keluar);
+                if (dMasuk && dKeluar) {
+                  let diff = Math.floor((dKeluar - dMasuk) / 1000); 
+                  if (diff < 0) diff += 86400; 
+                  let hrs = Math.floor(diff / 3600); 
+                  let mns = Math.floor((diff % 3600) / 60);
+                  durationHTML = `<span class="live-timer" style="background:linear-gradient(145deg, #27ae60, #2ecc71); border:none; margin-top:5px;">Jumlah Bertugas: ${hrs}J ${mns}M</span>`;
+                }
+              } else if (!isHistory && i.jam && i.jam !== "undefined") {
+                durationHTML = `<span class="live-timer" data-masuk="${i.jam}" style="margin-top:5px;">Sedang Bertugas: 0J 0M</span>`;
+              }
+          }
+
+          let detailsHTML = "";
+          if (i.kategori === "CUTI") {
+              let isSah = i.statusSah === "DISAHKAN";
+              let pengesahText = isSah ? `<div style="color:#ffffff; font-size:10px; font-weight:800; margin-top:5px; background:linear-gradient(145deg, #27ae60, #2ecc71); display:inline-block; padding:4px 8px; border-radius:6px; box-shadow:0 2px 4px rgba(39,174,96,0.2);">DISAHKAN OLEH: ${i.admin || "ADMIN"}</div>` : `<div style="color:#1e3c72; font-size:10px; font-weight:800; margin-top:5px; background:linear-gradient(145deg, #f2c94c, #f2994a); display:inline-block; padding:4px 8px; border-radius:6px; box-shadow:0 2px 4px rgba(242,153,74,0.2);">BELUM DISAHKAN</div>`;
+
+              detailsHTML = `<div style="display:flex; align-items:center; gap:5px;"><span style="font-weight:800; color:#3498db;">TIDAK HADIR KERANA: ${i.jam}</span></div>${pengesahText}`;
+          } else {
+              let locIndicator = "";
+              if (i.keluar && i.keluar !== "" && i.keluar !== "undefined") {
+                  if (i.locStatus === "DALAM") locIndicator = " <span title='Dalam Kawasan' style='font-size:12px; filter:drop-shadow(0 2px 2px rgba(0,0,0,0.2));'>🔵</span>";
+                  else if (i.locStatus === "LUAR") locIndicator = " <span title='Luar Kawasan' style='font-size:12px; filter:drop-shadow(0 2px 2px rgba(0,0,0,0.2));'>🔴</span>";
+                  else locIndicator = " <span title='GPS Tiada/Ralat' style='font-size:12px; filter:drop-shadow(0 2px 2px rgba(0,0,0,0.2));'>🟡</span>";
+              }
+
+              detailsHTML = `<div style="display:flex; align-items:center; gap:5px;"><span style="font-weight:800; color:#3498db;">${i.kategori}</span></div>
+                   <div style="font-size:11px; color:#1e3c72; background:#e0eafc; padding:4px 8px; border-radius:8px; border:1px solid #c5d4e8; margin-top:3px;">Masuk: <b>${displayMasuk}</b> | Keluar: <b>${displayKeluar}</b>${locIndicator}</div>
+                   ${durationHTML}`;
+          }
+
+          html += `<div class="user-card ${offlineClass}">
+              <div style="display:flex; align-items:center; width:100%;">
+                <div class="user-info">
+                  <strong style="color:${nameColor}">${offlineIcon}${i.nama}</strong>
+                  <div class="user-details">${detailsHTML}</div>
+                </div>
+              </div>
+              <div class="list-actions">${imgBtn}${xBtn}</div>
+              </div>`; 
+       });
+       return html;
+    };
+
+    if (tidakHadir.length > 0) {
+       h += `<div style="font-size:13px; font-weight:800; color:#c0392b; margin-top:20px; margin-bottom:12px; border-bottom: 3px solid #fadbd8; padding-bottom:8px; text-align:left; text-transform:uppercase;">
+          <span style="font-size: 18px; vertical-align: middle; margin-right: 5px; filter:drop-shadow(0 2px 3px rgba(0,0,0,0.2));">💐</span> SENARAI TIDAK HADIR (${tidakHadir.length})
+        </div>`;
+       h += generateCards(tidakHadir);
+    }
+
+    if (hadirAktif.length > 0) {
+       h += `<div style="font-size:13px; font-weight:800; color:#27ae60; margin-top:20px; margin-bottom:12px; border-bottom: 3px solid #d4edda; padding-bottom:8px; text-align:left; text-transform:uppercase;">
+          <span style="font-size: 18px; vertical-align: middle; margin-right: 5px; filter:drop-shadow(0 2px 3px rgba(0,0,0,0.2));">🟢</span> SEDANG HADIR (${hadirAktif.length})
+        </div>`;
+       h += generateCards(hadirAktif);
+    } else if (!isHistory) {
+       h += `<div style="font-size:13px; font-weight:800; color:#27ae60; margin-top:20px; margin-bottom:12px; border-bottom: 3px solid #d4edda; padding-bottom:8px; text-align:left; text-transform:uppercase;">
+          <span style="font-size: 18px; vertical-align: middle; margin-right: 5px; filter:drop-shadow(0 2px 3px rgba(0,0,0,0.2));">🟢</span> SEDANG HADIR (0)
+        </div><div style='padding:20px; color:#55719e; font-size:12px; text-align:center; font-weight:600; background:#f5f8fa; border-radius:15px; border:2px dashed #d1def0;'>Tiada rekod sedang hadir.</div>`;
+    }
+
+    if (daftarKeluar.length > 0) {
+       h += `<div style="font-size:13px; font-weight:800; color:#e67e22; margin-top:20px; margin-bottom:12px; border-bottom: 3px solid #fdeea5; padding-bottom:8px; text-align:left; text-transform:uppercase;">
+          <span style="font-size: 18px; vertical-align: middle; margin-right: 5px; filter:drop-shadow(0 2px 3px rgba(0,0,0,0.2));">🔴</span> SUDAH DAFTAR KELUAR (${daftarKeluar.length})
+        </div>`;
+       h += generateCards(daftarKeluar);
+    }
+
+    if (items.length === 0) {
+        h = `<div style='padding:30px; color:#55719e; font-size:13px; text-align:center; font-weight:600; background:#f5f8fa; border-radius:15px; border:2px dashed #d1def0;'>Tiada rekod ${isHistory ? 'pada tarikh ini' : 'hari ini'}.</div>`;
+    }
+
+    document.getElementById('listContainer').innerHTML = h; 
+    if (!isHistory) updateLiveTimers();
+  }
+
+  function viewImage(index) { 
+    let data = currentList[index]; 
+    if (data && data.foto) { 
+      document.getElementById('imgFull').src = data.foto; 
+      document.getElementById('imageModal').style.display = "flex"; 
+    } 
+  }
+  
+  function closeModal() { document.getElementById('imageModal').style.display = "none"; }
+  
+  function processImage(i) {
+    if (i.files && i.files[0]) {
+      let r = new FileReader();
+      r.onload = function(e) {
+        let im = new Image();
+        im.src = e.target.result;
+        im.onload = function() {
+          let cv = document.createElement("canvas");
+          let ctx = cv.getContext("2d");
+          cv.width = 400;
+          cv.height = 400 * (im.height / im.width);
+          ctx.drawImage(im, 0, 0, cv.width, cv.height);
+          let d = cv.toDataURL("image/jpeg", 0.7);
+          let p = document.getElementById('previewImg');
+          let c = document.getElementById('camContent');
+          if (p) {
+            p.src = d;
+            p.style.display = 'block';
+          }
+          if (c) {
+            c.style.display = 'none';
+          }
+          document.getElementById('base64Foto').value = d;
+        };
+      };
+      r.readAsDataURL(i.files[0]);
+    }
+  }
+  
+  function checkKategori() { if (document.getElementById('kategori').value === 'PELAWAT') showPelawatForm(); }
+  function showPelawatForm() { document.getElementById('defaultForm').style.display = 'none'; document.getElementById('pelawatPanel').style.display = 'block'; }
+  function cancelPelawat() { 
+    document.getElementById('pelawatPanel').style.display = 'none'; 
+    let s = JSON.parse(localStorage.getItem('ehadir_session'));
+    if (s && s.date === getTodayStr()) {
+      document.getElementById('dashboardPanel').style.display = 'block';
+    } else {
+      document.getElementById('defaultForm').style.display = 'block';
+    }
+  }
+  function resetSesi() {
+    showModernAlert("Reset Sesi", "Adakah anda pasti untuk reset sesi anda?", "confirm", function() {
+      localStorage.removeItem('ehadir_session'); 
+      location.reload();
+    }); 
+  }
+</script>
 </body>
 </html>
