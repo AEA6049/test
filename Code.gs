@@ -632,3 +632,64 @@ function pasangTriggerArkib() {
  * Untuk test manual — arkib data bulan lepas serta-merta tanpa tunggu 1hb.
  */
 function ujiArkibSekarang() { arkibBulanan(); }
+
+/**
+ * SKRIP TEST — pindah SEMUA data kehadiran (semua bulan, semua pekerja)
+ * dari sheet aktif ke ARKIB_DATA, kemudian bersihkan sheet aktif.
+ * Sheet ARKIB_DATA akan auto-create jika belum wujud.
+ *
+ * Jalankan sekali dari editor Apps Script: pilih fungsi `ujiArkibSemua`
+ * kemudian tekan ▶ Run. Semak log (View > Logs) untuk laporan.
+ */
+function ujiArkibSemua() {
+  var lock = LockService.getScriptLock();
+  try { lock.waitLock(60000); } catch(e) { Logger.log("Lock gagal"); return; }
+  try {
+    var ss = SpreadsheetApp.openById(idSheet);
+    var arkibSh = ensureArkibSheet();
+    var totalArkib = 0, totalPadam = 0;
+    var laporan = [];
+
+    SHEETS_LIST.forEach(function(sheetName) {
+      var sh = ss.getSheetByName(sheetName);
+      if (!sh || sh.getLastRow() < 2) {
+        laporan.push(sheetName + ": kosong");
+        return;
+      }
+      var lastRow = sh.getLastRow();
+      var lastCol = sh.getLastColumn();
+      var data = sh.getRange(2,1,lastRow-1,lastCol).getValues();
+
+      var toArchive = [];
+      for (var i = 0; i < data.length; i++) {
+        var row = data[i];
+        var d = parseSafeDateObj(row[0]);
+        var bulanArkib = Utilities.formatDate(d, "GMT+8", "MM.yyyy");
+        var archRow = [sheetName, bulanArkib];
+        for (var j = 0; j < 9; j++) archRow.push(row[j] !== undefined ? row[j] : "");
+        toArchive.push(archRow);
+      }
+
+      if (toArchive.length > 0) {
+        arkibSh.getRange(arkibSh.getLastRow()+1, 1, toArchive.length, ARKIB_HEADERS.length)
+               .setValues(toArchive);
+        totalArkib += toArchive.length;
+        // Padam semua row data (kekalkan header)
+        sh.deleteRows(2, lastRow - 1);
+        totalPadam += toArchive.length;
+        laporan.push(sheetName + ": " + toArchive.length + " rekod diarkib");
+      } else {
+        laporan.push(sheetName + ": tiada data");
+      }
+    });
+
+    Logger.log("=== UJI ARKIB SEMUA SELESAI ===");
+    laporan.forEach(function(l){ Logger.log(l); });
+    Logger.log("JUMLAH: " + totalArkib + " rekod diarkib, " + totalPadam + " rekod dipadam dari sheet aktif.");
+    Logger.log("Semak sheet 'ARKIB_DATA' di Google Sheets anda.");
+  } catch(err) {
+    Logger.log("ERROR ujiArkibSemua: " + err.toString());
+  } finally {
+    lock.releaseLock();
+  }
+}
