@@ -1,8 +1,8 @@
-// sw.js - Versi Ultra-Hybrid v53 (Auto-Force Update / Fixed Date Issue)
+// sw.js - Versi Ultra-Hybrid v55 (Professional UI Refresh)
 // Dibuat untuk: E-HADIR PWA
 // Strategi: Network First (Data Terkini) -> Fallback Cache (Offline)
 
-const CACHE_NAME = 'ehadir-hybrid-v54-arkib';
+const CACHE_NAME = 'ehadir-hybrid-v55-ui-refresh';
 const URLS_TO_CACHE = [
   './',
   './index.html',
@@ -16,7 +16,7 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('Opened cache v54-arkib');
+        console.log('Opened cache v54-integrity');
         return cache.addAll(URLS_TO_CACHE);
       })
   );
